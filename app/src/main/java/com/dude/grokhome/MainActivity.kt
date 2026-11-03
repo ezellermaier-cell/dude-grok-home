@@ -112,6 +112,8 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
         newsView = TextView(this).apply {
             text = "GLOBAL FEED  /  GOOGLE NEWS\nFetching latest headlines…"
             textSize = 15f; setTextColor(Color.WHITE); gravity = Gravity.CENTER_VERTICAL
+            isSingleLine = true; ellipsize = android.text.TextUtils.TruncateAt.MARQUEE
+            marqueeRepeatLimit = -1; isSelected = true
             setPadding(22, 14, 18, 14); background = panelBackground()
             typeface = android.graphics.Typeface.create("sans-serif", android.graphics.Typeface.NORMAL)
         }
@@ -136,9 +138,11 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
         val buttons = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
         val talk = makeButton("🎙  TALK") { startListening() }
         val devices = makeButton("⌂  SMART HOME") { discoverDevices() }
+        val assistant = makeButton("◉  GOOGLE") { launchGoogleAssistant() }
         val settings = makeButton("⚙  SETTINGS") { settingsDialog() }
         buttons.addView(talk, LinearLayout.LayoutParams(0, 58, 1f).apply { setMargins(4, 4, 4, 4) })
-        buttons.addView(devices, LinearLayout.LayoutParams(0, 58, 1.3f).apply { setMargins(4, 4, 4, 4) })
+        buttons.addView(assistant, LinearLayout.LayoutParams(0, 58, 1f).apply { setMargins(4, 4, 4, 4) })
+        buttons.addView(devices, LinearLayout.LayoutParams(0, 58, 1.2f).apply { setMargins(4, 4, 4, 4) })
         buttons.addView(settings, LinearLayout.LayoutParams(0, 58, 1f).apply { setMargins(4, 4, 4, 4) })
         root.addView(buttons)
         val note = TextView(this).apply {
@@ -159,10 +163,24 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
         worker.execute {
             val city = prefs.getString("weather_city", "").orEmpty()
             val weather = if (city.isBlank()) "◉  LIVE WEATHER\\nSet a city in Settings" else "◉  LIVE WEATHER\\n" + DashboardData.weather(city)
-            val news = DashboardData.headlines()
-            runOnUiThread { weatherView.text = weather; newsView.text = news }
+            val news = DashboardData.headlines().replace("\\n", "     •     ")
+            runOnUiThread {
+                weatherView.text = weather
+                newsView.text = news
+                weatherView.animate().alpha(0.72f).setDuration(900).withEndAction {
+                    weatherView.animate().alpha(1f).setDuration(900).start()
+                }.start()
+            }
         }
     }
+    private fun launchGoogleAssistant() {
+        try {
+            startActivity(Intent(Intent.ACTION_ASSIST))
+        } catch (_: Exception) {
+            say("The Google assistant app is not available as the default assistant on this tablet. Set Google or Gemini as your default digital assistant in Android settings.")
+        }
+    }
+
     private fun makeButton(label: String, action: () -> Unit) = Button(this).apply {
         text = label; textSize = 14f; setTextColor(Color.WHITE)
         setBackgroundColor(Color.rgb(30, 105, 160)); setOnClickListener { action() }
@@ -203,7 +221,10 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
                             val domain = entity.substringBefore(".")
                             if (domain in setOf("light", "switch", "fan", "cover")) {
                                 val current = statesById[entity].orEmpty()
-                                val service = if (current == "on" || current == "open") "turn_off" else "turn_on"
+                                val service = when (domain) {
+                                    "cover" -> if (current == "open") "close_cover" else "open_cover"
+                                    else -> if (current == "on") "turn_off" else "turn_on"
+                                }
                                 worker.execute {
                                     try {
                                         HomeAssistantClient(haUrl, haToken).callService(domain, service, entity)
