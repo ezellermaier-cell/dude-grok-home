@@ -16,6 +16,10 @@ import java.security.KeyStore
 import android.content.pm.PackageManager
 import android.graphics.Color
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import java.text.SimpleDateFormat
+import java.util.Date
 import android.speech.RecognizerIntent
 import android.speech.tts.TextToSpeech
 import android.view.Gravity
@@ -33,6 +37,10 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
     private lateinit var prefs: SharedPreferences
     private lateinit var status: TextView
     private lateinit var transcript: TextView
+    private lateinit var clockView: TextView
+    private lateinit var weatherView: TextView
+    private lateinit var newsView: TextView
+    private val mainHandler = Handler(Looper.getMainLooper())
     private lateinit var tts: TextToSpeech
     private val worker = Executors.newSingleThreadExecutor()
     private val bg = Color.rgb(10, 18, 32)
@@ -50,6 +58,10 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
         prefs = getSharedPreferences("dude_private", MODE_PRIVATE)
         tts = TextToSpeech(this, this)
         buildUi()
+        updateClock()
+        refreshDashboard()
+        mainHandler.post(object : Runnable { override fun run() { updateClock(); mainHandler.postDelayed(this, 1000) } })
+        mainHandler.postDelayed(object : Runnable { override fun run() { refreshDashboard(); mainHandler.postDelayed(this, 30 * 60 * 1000L) } }, 30 * 60 * 1000L)
         if (loadApiKey().isBlank()) settingsDialog()
     }
 
@@ -64,11 +76,23 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
             textSize = 18f; setTextColor(blue); gravity = Gravity.CENTER
         }
         root.addView(header, LinearLayout.LayoutParams(-1, 48))
-        val clock = TextView(this).apply {
+        clockView = TextView(this).apply {
             text = "HEY THERE 👋"
             textSize = 34f; setTextColor(Color.WHITE); gravity = Gravity.CENTER
         }
-        root.addView(clock, LinearLayout.LayoutParams(-1, 78))
+        root.addView(clockView, LinearLayout.LayoutParams(-1, 68))
+        val dashboardCards = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        weatherView = TextView(this).apply {
+            text = "WEATHER\\nLoading…"; textSize = 15f; setTextColor(Color.WHITE)
+            gravity = Gravity.CENTER; setPadding(12, 10, 12, 10); setBackgroundColor(panel)
+        }
+        newsView = TextView(this).apply {
+            text = "LATEST NEWS\\nLoading headlines…"; textSize = 13f; setTextColor(Color.WHITE)
+            gravity = Gravity.CENTER_VERTICAL; setPadding(14, 10, 14, 10); setBackgroundColor(panel)
+        }
+        dashboardCards.addView(weatherView, LinearLayout.LayoutParams(0, 112, 1f).apply { setMargins(4, 4, 8, 4) })
+        dashboardCards.addView(newsView, LinearLayout.LayoutParams(0, 112, 2f).apply { setMargins(8, 4, 4, 4) })
+        root.addView(dashboardCards)
         status = TextView(this).apply {
             text = "Ready when you are. Try a command or ask me something."
             textSize = 16f; setTextColor(Color.LTGRAY); gravity = Gravity.CENTER
@@ -96,6 +120,19 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
         setContentView(root)
     }
 
+    private fun updateClock() {
+        if (::clockView.isInitialized) clockView.text = SimpleDateFormat("h:mm a  •  EEEE, MMM d", Locale.getDefault()).format(Date())
+    }
+
+    private fun refreshDashboard() {
+        if (!::weatherView.isInitialized || !::newsView.isInitialized) return
+        worker.execute {
+            val city = prefs.getString("weather_city", "").orEmpty()
+            val weather = if (city.isBlank()) "WEATHER\\nSet a city in Settings" else DashboardData.weather(city)
+            val news = DashboardData.headlines()
+            runOnUiThread { weatherView.text = weather; newsView.text = "LATEST NEWS\\n$news" }
+        }
+    }
     private fun makeButton(label: String, action: () -> Unit) = Button(this).apply {
         text = label; textSize = 14f; setTextColor(Color.WHITE)
         setBackgroundColor(Color.rgb(30, 105, 160)); setOnClickListener { action() }
@@ -263,6 +300,7 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
             }
         }
         val api = field("Optional xAI API key (separate API billing)", secret = true)
+        val city = field("Weather city (example: Newark, NJ)", prefs.getString("weather_city", "").orEmpty())
         val url = field("Home Assistant URL (example: http://192.168.1.20:8123)", prefs.getString("ha_url", "").orEmpty())
         val token = field("Home Assistant long-lived access token", secret = true)
         val light = field("Light entity ID (example: light.living_room)", prefs.getString("ha_light_entity", "").orEmpty())
@@ -272,11 +310,13 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
             .setView(ScrollView(this).apply { addView(layout) })
             .setPositiveButton("Save") { _, _ ->
                 if (api.text.toString().isNotBlank()) saveSecret("xai", api.text.toString().trim())
-                prefs.edit().putString("ha_url", url.text.toString().trim())
+                prefs.edit().putString("weather_city", city.text.toString().trim())
+                    .putString("ha_url", url.text.toString().trim())
                     .putString("ha_light_entity", light.text.toString().trim())
                     .putString("ha_switch_entity", plug.text.toString().trim()).apply()
                 if (token.text.toString().isNotBlank()) saveSecret("ha_token", token.text.toString().trim())
-                say("Connections saved on this tablet.")
+                say("Connections saved. Updating your dashboard.")
+                refreshDashboard()
             }
             .setNeutralButton("Remove AI key") { _, _ ->
                 prefs.edit().remove("xai_cipher").remove("xai_iv").apply()
