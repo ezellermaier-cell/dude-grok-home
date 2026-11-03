@@ -270,9 +270,9 @@ class MainActivity : Activity() {
             speakWeather()
             return
         }
-        if (q.contains("tell me a joke")) { speak("I asked the washing machine for a joke. It said it was on a spin cycle."); return }
-        if (q.contains("what can you do")) { speak("I can show your dashboard, read headlines, check weather, and control devices connected to Home Assistant."); return }
-        if (q.contains("news") || q.contains("headlines")) { speak(newsList.takeIf { it.childCount > 0 }?.let { "Here are the latest Google News headlines on your screen." } ?: "The news feed is not loaded yet."); return }
+        if (q.contains("tell me a joke")) { speak("I asked the washing machine for a joke. It said it was on a spin cycle. Honestly, a pretty clean delivery."); return }
+        if (q.contains("what can you do")) { speak("I'm your dashboard's resident genius. I can check the weather, read the news, tell terrible jokes, and boss your connected smart-home devices around. Politely. Mostly."); return }
+        if (q.contains("news") || q.contains("headlines")) { speak(newsList.takeIf { it.childCount > 0 }?.let { "The latest headlines are right there. Try not to let the world get any weirder while I'm not looking." } ?: "The news feed hasn't shown up yet. Even I can't make news appear out of thin air."); return }
 
         val router = LocalCommandRouter()
         val result = router.route(utterance, prefs.getString("ha_light_entity", "").orEmpty(), prefs.getString("ha_switch_entity", "").orEmpty())
@@ -287,7 +287,7 @@ class MainActivity : Activity() {
             q.contains("turn off") && (q.contains("light") || q.contains("lamp")) -> controlDomain("light", "turn_off", "Turning off the lights.")
             q.contains("turn on") && q.contains("plug") -> controlDomain("switch", "turn_on", "Turning on the plug.")
             q.contains("turn off") && q.contains("plug") -> controlDomain("switch", "turn_off", "Turning off the plug.")
-            else -> speak("I didn't catch a supported command. Try asking for the time, weather, news, or a smart-home action.")
+            else -> speak("I heard you, but my brain hasn't connected those dots yet. Try asking about the weather, news, time, or your smart-home devices.")
         }
     }
 
@@ -305,17 +305,17 @@ class MainActivity : Activity() {
             .replace(Regex("\\s+"), " ")
             .trim()
         if (raw.isBlank() || raw.contains("set a city", ignoreCase = true)) {
-            speak("I can check that. First, choose your city in settings.")
+            speak("I'd love to give you the forecast, but I need to know which city we're rescuing from the weather. Set your city in settings first.")
             return
         }
         if (raw.contains("unavailable", ignoreCase = true) || raw.contains("city not found", ignoreCase = true)) {
-            speak("I can't get the weather right now. Check your internet connection and city setting.")
+            speak("Weather radar is having a moment. I can't reach the forecast right now. Check the internet and your city setting, and I'll try again.")
             return
         }
         val parts = raw.split(",").map { it.trim() }.filter { it.isNotBlank() }
         val place = parts.firstOrNull().orEmpty()
         val conditions = parts.drop(1).joinToString(". ")
-        speak(if (conditions.isBlank()) "Here's the weather for $place." else "Here's the weather in $place. $conditions.")
+        speak(if (conditions.isBlank()) "Here's the forecast for $place. Not much to report yet." else "Alright, here's the situation in $place. $conditions. Dress accordingly. I refuse to be blamed for bad outfit decisions.")
     }
 
     private fun controlDomain(domain: String, service: String, replyText: String) {
