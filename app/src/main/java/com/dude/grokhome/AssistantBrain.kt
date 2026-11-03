@@ -1,61 +1,83 @@
 package com.dude.grokhome
 
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
 /**
- * Local intent understanding for DUDE.
- * It deliberately matches meaning and common conversational phrasing, not exact sentences.
- * This is deterministic/offline intent routing, not a claim of unrestricted generative AI.
+ * Local conversation and intent layer. Understands common ways people express
+ * the same request. It is deterministic and key-free; it is not a generative LLM.
  */
 class AssistantBrain {
-    enum class Kind { GREETING, WEATHER, TIME, DATE, NEWS, JOKE, HELP, LIGHT_ON, LIGHT_OFF, PLUG_ON, PLUG_OFF, UNKNOWN }
+    enum class Kind {
+        GREETING, WEATHER, TIME, DATE, NEWS, JOKE, HELP,
+        LIGHT_ON, LIGHT_OFF, PLUG_ON, PLUG_OFF,
+        VACUUM_START, VACUUM_STOP, VACUUM_DOCK,
+        THERMOSTAT, UNKNOWN
+    }
+
     data class Intent(val kind: Kind, val original: String)
 
-    fun understand(utterance: String): Intent {
-        val q = utterance.lowercase(Locale.ROOT)
-            .replace(Regex("[^a-z0-9' ]"), " ")
-            .replace(Regex("\\s+"), " ").trim()
-        fun hasAny(vararg terms: String) = terms.any { q.contains(it) }
+    private fun normalize(value: String): String = value.lowercase(Locale.ROOT)
+        .replace("what's", "what is")
+        .replace("whats", "what is")
+        .replace("it's", "it is")
+        .replace("isn't", "is not")
+        .replace(Regex("[^a-z0-9° ]"), " ")
+        .replace(Regex("\\s+"), " ")
+        .trim()
 
+    fun understand(utterance: String): Intent {
+        val q = normalize(utterance)
+        fun any(vararg phrases: String) = phrases.any { q.contains(it) }
         val kind = when {
-            hasAny("what's the weather", "what is the weather", "weather like", "weather today",
-                "forecast", "temperature outside", "how hot", "how cold", "is it raining",
-                "will it rain", "do i need a jacket", "should i bring an umbrella", "is it sunny",
-                "is it cloudy", "is it snowing", "outside right now", "outside like") -> Kind.WEATHER
-            hasAny("what time", "current time", "tell me the time", "time is it") -> Kind.TIME
-            hasAny("what's the date", "what is the date", "today's date", "what day is it", "which day") -> Kind.DATE
-            hasAny("news", "headlines", "what's happening", "what is happening", "latest stories") -> Kind.NEWS
-            hasAny("tell me a joke", "make me laugh", "say something funny", "joke") -> Kind.JOKE
-            hasAny("what can you do", "help me", "your features", "how do i use you") -> Kind.HELP
-            hasAny("turn on", "switch on", "turn the", "switch the", "light on") &&
-                hasAny("light", "lights", "lamp", "lamps") -> Kind.LIGHT_ON
-            hasAny("turn off", "switch off", "shut off", "lights off", "light off") &&
-                hasAny("light", "lights", "lamp", "lamps") -> Kind.LIGHT_OFF
-            hasAny("turn on", "switch on", "plug on") && hasAny("plug", "outlet") -> Kind.PLUG_ON
-            hasAny("turn off", "switch off", "plug off") && hasAny("plug", "outlet") -> Kind.PLUG_OFF
-            hasAny("hello", "hi dude", "hey dude", "good morning", "good afternoon", "good evening") -> Kind.GREETING
+            any("weather", "forecast", "temperature outside", "outside temperature",
+                "how hot", "how cold", "is it raining", "will it rain", "going to rain",
+                "do i need a jacket", "bring an umbrella", "need an umbrella",
+                "is it sunny", "is it cloudy", "is it snowing", "outside like",
+                "what should i wear", "weather like") -> Kind.WEATHER
+            any("what time", "time is it", "current time", "tell me the time") -> Kind.TIME
+            any("what is the date", "today date", "what day is it", "day of the week") -> Kind.DATE
+            any("news", "headlines", "what is happening", "what is going on", "latest stories") -> Kind.NEWS
+            any("joke", "make me laugh", "something funny", "cheer me up") -> Kind.JOKE
+            any("what can you do", "help me", "your features", "how do i use you") -> Kind.HELP
+            any("vacuum", "robot") && any("start", "clean", "vacuum the floor") -> Kind.VACUUM_START
+            any("vacuum", "robot") && any("stop", "pause") -> Kind.VACUUM_STOP
+            any("vacuum", "robot") && any("dock", "charge", "go home") -> Kind.VACUUM_DOCK
+            any("light", "lights", "lamp", "lamps") && any("turn on", "switch on", "put on", "make brighter") -> Kind.LIGHT_ON
+            any("light", "lights", "lamp", "lamps") && any("turn off", "switch off", "shut off", "kill the lights") -> Kind.LIGHT_OFF
+            any("plug", "outlet") && any("turn on", "switch on", "power on") -> Kind.PLUG_ON
+            any("plug", "outlet") && any("turn off", "switch off", "power off") -> Kind.PLUG_OFF
+            any("hello", "hi dude", "hey dude", "good morning", "good afternoon", "good evening") -> Kind.GREETING
             else -> Kind.UNKNOWN
         }
         return Intent(kind, utterance)
     }
 
     fun greeting(): String {
-        val hour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
-        val hello = when (hour) { in 5..11 -> "Morning"; in 12..16 -> "Hey there"; in 17..21 -> "Evening"; else -> "You're up late" }
-        return "$hello. DUDE is online, looking handsome, and only mildly overconfident. What's up?"
+        val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
+        val greeting = when (hour) {
+            in 5..11 -> "Morning"
+            in 12..16 -> "Hey there"
+            in 17..21 -> "Evening"
+            else -> "You're up late"
+        }
+        return "$greeting. DUDE is online, looking sharp, and only mildly overconfident. What can I do for you?"
     }
 
     fun joke(): String = listOf(
-        "I tried to make friends with the router. It said we needed a stronger connection.",
-        "The washing machine told me a joke. It was a spin-off. I'm still processing it.",
-        "I asked the lights to brighten my day. They said, 'You first.' Rude.",
+        "I asked the router for relationship advice. It said we needed a stronger connection.",
+        "I tried to organize hide and seek with the appliances. The washing machine is still spinning.",
+        "I told the lights to brighten my day. They said, 'You first.' Honestly, rude.",
         "I would tell you a joke about electricity, but it might be shocking."
     ).random()
 
-    fun time(): String = "It's " + SimpleDateFormat("h:mm a", Locale.getDefault()).format(Date()) +
-        ". Yes, I checked. I do have a clock-shaped brain."
-    fun date(): String = "Today is " + SimpleDateFormat("EEEE, MMMM d", Locale.getDefault()).format(Date()) +
-        ". A fine day to be the most useful thing on this tablet."
+    fun time(): String =
+        "It's " + SimpleDateFormat("h:mm a", Locale.getDefault()).format(Date()) +
+            ". You're welcome. I keep time so you don't have to."
+
+    fun date(): String =
+        "Today is " + SimpleDateFormat("EEEE, MMMM d", Locale.getDefault()).format(Date()) +
+            ". A perfectly good day to get things done. Or not. I'm not your boss."
 }
