@@ -108,7 +108,7 @@ class MainActivity : Activity() {
         header.addView(voiceStatus)
         root.addView(header)
 
-        scroll = ScrollView(this).apply { fillViewport = true; isVerticalScrollBarEnabled = false }
+        scroll = ScrollView(this).apply { isFillViewport = true; isVerticalScrollBarEnabled = false }
         val content = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         val hero = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
         val left = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
