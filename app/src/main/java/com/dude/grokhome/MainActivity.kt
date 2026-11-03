@@ -762,7 +762,7 @@ class MainActivity : Activity() {
         val vacuum = field(home, "Vacuum entity (optional)", "vacuum.robot",
             prefs.getString("ha_vacuum_entity", "").orEmpty())
         action(home, "DISCOVER MY DEVICES", "Find supported entities automatically after connecting.") { discoverDevices() }
-        val haFields = (2 until home.childCount).map { home.getChildAt(it) }
+        val haFields = (3 until home.childCount).map { home.getChildAt(it) }
         fun showHaFields(enabled: Boolean) { haFields.forEach { it.visibility = if (enabled) View.VISIBLE else View.GONE } }
         showHaFields(haToggle.isChecked)
         haToggle.setOnCheckedChangeListener { _, enabled -> showHaFields(enabled) }
@@ -783,7 +783,7 @@ class MainActivity : Activity() {
             speak("Gemini key cleared from this tablet.")
             showSectionTab("SETTINGS")
         }
-        val aiFields = (2 until ai.childCount).map { ai.getChildAt(it) }
+        val aiFields = (3 until ai.childCount).map { ai.getChildAt(it) }
         fun showAiFields(enabled: Boolean) { aiFields.forEach { it.visibility = if (enabled) View.VISIBLE else View.GONE } }
         showAiFields(aiToggle.isChecked)
         aiToggle.setOnCheckedChangeListener { _, enabled -> showAiFields(enabled) }
@@ -870,7 +870,7 @@ class MainActivity : Activity() {
 
     private fun askGemini(utterance: String) {
         val key = loadSecret("gemini_api_key")
-        if (key.isBlank()) {
+        if (!prefs.getBoolean("gemini_enabled", key.isNotBlank()) || key.isBlank()) {
             speak("I can answer that once you connect Gemini. Open Settings and add your free-tier Gemini API key.")
             return
         }
@@ -928,7 +928,7 @@ class MainActivity : Activity() {
     private fun loadDashboard() {
         io.execute {
             val city = prefs.getString("weather_city", "").orEmpty()
-            val w = if (city.isBlank()) "" else DashboardData.weather(city)
+            val w = if (!prefs.getBoolean("weather_enabled", true) || city.isBlank()) "" else DashboardData.weather(city)
             val n = DashboardData.newsItems()
             runOnUiThread {
                 weatherText = w
