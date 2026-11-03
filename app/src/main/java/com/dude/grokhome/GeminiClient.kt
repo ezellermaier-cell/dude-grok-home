@@ -34,7 +34,7 @@ class GeminiClient(private val apiKey: String) {
                     "the app explicitly confirms it. Never invent current weather, news, or device states."
             ))))
             .put("contents", contents)
-            .put("generationConfig", JSONObject().put("temperature", 0.7).put("maxOutputTokens", 700))
+            .put("generationConfig", JSONObject().put("maxOutputTokens", 700))
 
         val connection = (URL("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent")
             .openConnection() as HttpURLConnection).apply {
