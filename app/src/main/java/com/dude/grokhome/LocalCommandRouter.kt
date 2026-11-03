@@ -1,7 +1,7 @@
 package com.dude.grokhome
 
 /**
- * Routes simple, deterministic commands locally. These do not consume xAI API usage.
+ * Routes simple, deterministic commands locally. These commands run locally without a cloud AI service.
  * For real device actions, provide an exact Home Assistant entity ID in settings.
  */
 class LocalCommandRouter {
@@ -27,7 +27,7 @@ class LocalCommandRouter {
             if (switchEntity.isBlank()) return Result("Set your smart plug entity in settings first.")
             return Result("Turning off your plug.", "switch", "turn_off", switchEntity)
         }
-        if (q.contains("what can you do")) return Result("I can answer locally, tell jokes, and control configured Home Assistant lights and plugs. Grok AI is optional.")
+        if (q.contains("what can you do")) return Result("I can answer locally, tell jokes, and control configured Home Assistant lights and plugs. Cloud AI is not configured; DUDE uses local commands.")
         return null
     }
 }
