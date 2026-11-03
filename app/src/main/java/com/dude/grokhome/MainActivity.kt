@@ -121,7 +121,7 @@ class MainActivity : Activity() {
         // DUDE // NEON COMMAND DECK — redesigned as a futuristic control surface.
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(22, 14, 22, 14)
+            setPadding(22, 24, 22, 18)
             background = GradientDrawable(GradientDrawable.Orientation.TL_BR,
                 intArrayOf(Color.rgb(2, 7, 22), Color.rgb(5, 22, 46), Color.rgb(10, 9, 34)))
         }
@@ -129,9 +129,9 @@ class MainActivity : Activity() {
             txt(text, size, color, bold)
         val header = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
         val brand = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        brand.addView(label("DUDE", 29f, cyan, true).apply { letterSpacing = 0.22f; setShadowLayer(18f, 0f, 0f, cyan) })
+        brand.addView(label("DUDE", 27f, cyan, true).apply { letterSpacing = 0.22f; setShadowLayer(18f, 0f, 0f, cyan) })
         brand.addView(label("PERSONAL HOME INTELLIGENCE", 8f, muted, true).apply { letterSpacing = 0.18f })
-        header.addView(brand, LinearLayout.LayoutParams(0, 54, 1f))
+        header.addView(brand, LinearLayout.LayoutParams(0, 62, 1f))
         status = label("● SYSTEM ONLINE", 10f, mint, true)
         header.addView(status)
         header.addView(button("⚙") { settings() }, LinearLayout.LayoutParams(48, 42).apply { leftMargin = 12 })
@@ -161,8 +161,8 @@ class MainActivity : Activity() {
         core.addView(label("DUDE CORE", 10f, Color.WHITE, true).apply { gravity = Gravity.CENTER; letterSpacing = 0.12f })
         core.addView(label("CHILL MODE: ON", 8f, mint, true).apply { gravity = Gravity.CENTER; setPadding(0, 5, 0, 10) })
         core.addView(button("TALK TO ME") { startVoice(); speak("Yo. I'm listening. What's up?") }, LinearLayout.LayoutParams(-1, 40))
-        hero.addView(core, LinearLayout.LayoutParams(0, 190, 0.9f).apply { leftMargin = 12 })
-        page.addView(hero, LinearLayout.LayoutParams(-1, 220).apply { bottomMargin = 12 })
+        hero.addView(core, LinearLayout.LayoutParams(0, 202, 0.9f).apply { leftMargin = 12 })
+        page.addView(hero, LinearLayout.LayoutParams(-1, 238).apply { bottomMargin = 12 })
 
         val wx = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL; setPadding(16, 12, 16, 12)
@@ -172,7 +172,7 @@ class MainActivity : Activity() {
         weatherTitle = label("SET YOUR CITY", 17f, Color.WHITE, true)
         weatherBody = label("Your forecast will show here.", 12f, muted)
         wx.addView(weatherTitle); wx.addView(weatherBody)
-        page.addView(wx, LinearLayout.LayoutParams(-1, 88).apply { bottomMargin = 12 })
+        page.addView(wx, LinearLayout.LayoutParams(-1, 108).apply { bottomMargin = 12 })
 
         val chat = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL; setPadding(16, 12, 16, 14)
@@ -194,7 +194,7 @@ class MainActivity : Activity() {
         askRow.addView(ask, LinearLayout.LayoutParams(0, 44, 1f).apply { rightMargin = 8 })
         askRow.addView(button("SEND  ↗") { val q = ask.text.toString().trim(); ask.setText(""); if (q.isNotBlank()) handle(q) }, LinearLayout.LayoutParams(92, 44))
         chat.addView(askRow)
-        page.addView(chat, LinearLayout.LayoutParams(-1, 122).apply { bottomMargin = 12 })
+        page.addView(chat, LinearLayout.LayoutParams(-1, 158).apply { bottomMargin = 12 })
 
         val news = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL; setPadding(14, 11, 14, 12)
@@ -205,8 +205,8 @@ class MainActivity : Activity() {
         newsHead.addView(label("WORLD FEED", 8f, mint, true))
         news.addView(newsHead)
         newsRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        news.addView(newsRow, LinearLayout.LayoutParams(-1, 132))
-        page.addView(news, LinearLayout.LayoutParams(-1, 168).apply { bottomMargin = 12 })
+        news.addView(newsRow, LinearLayout.LayoutParams(-1, 150))
+        page.addView(news, LinearLayout.LayoutParams(-1, 192).apply { bottomMargin = 12 })
 
         val home = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL; setPadding(14, 12, 14, 12)
@@ -224,11 +224,12 @@ class MainActivity : Activity() {
             }, LinearLayout.LayoutParams(0, 65, 1f).apply { setMargins(3, 3, 3, 3) })
         }
         home.addView(tiles)
-        page.addView(home)
+        page.addView(home, LinearLayout.LayoutParams(-1, 132))
         page.addView(label("DUDE 2.0  •  BUILT FOR YOUR HOME", 8f, muted, true).apply {
             gravity = Gravity.CENTER; setPadding(0, 10, 0, 4); letterSpacing = 0.12f
         })
         scroll.addView(page)
+        scroll.post { if (scroll.height > 0) page.minimumHeight = scroll.height }
         root.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
         setContentView(root)
     }
