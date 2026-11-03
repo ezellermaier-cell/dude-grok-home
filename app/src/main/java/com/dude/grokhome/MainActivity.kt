@@ -158,9 +158,9 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
         if (!::weatherView.isInitialized || !::newsView.isInitialized) return
         worker.execute {
             val city = prefs.getString("weather_city", "").orEmpty()
-            val weather = if (city.isBlank()) "WEATHER\\nSet a city in Settings" else DashboardData.weather(city)
+            val weather = if (city.isBlank()) "◉  LIVE WEATHER\\nSet a city in Settings" else "◉  LIVE WEATHER\\n" + DashboardData.weather(city)
             val news = DashboardData.headlines()
-            runOnUiThread { weatherView.text = weather; newsView.text = "LATEST NEWS\\n$news" }
+            runOnUiThread { weatherView.text = weather; newsView.text = news }
         }
     }
     private fun makeButton(label: String, action: () -> Unit) = Button(this).apply {
