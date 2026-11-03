@@ -625,8 +625,13 @@ class MainActivity : Activity() {
             if (subtitle != null) helper(box, subtitle)
         }
 
-        page.addView(label("PERSONALIZE YOUR DUDE", 10f, mint, true))
-        page.addView(label("Settings", 30f, Color.WHITE, true).apply { setPadding(0, 3, 0, 4) })
+        val settingsHeader = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+        val settingsTitles = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        settingsTitles.addView(label("PERSONALIZE YOUR DUDE", 10f, mint, true))
+        settingsTitles.addView(label("Settings", 30f, Color.WHITE, true).apply { setPadding(0, 3, 0, 4) })
+        settingsHeader.addView(settingsTitles, LinearLayout.LayoutParams(0, -2, 1f))
+        settingsHeader.addView(button("←  HOME") { showDashboardTab() }, LinearLayout.LayoutParams(104, 42))
+        page.addView(settingsHeader)
         page.addView(label("Everything is saved on this tablet. Choose a section below and follow the short hints.", 12f, muted)
             .apply { setPadding(0, 0, 0, 18) })
 
