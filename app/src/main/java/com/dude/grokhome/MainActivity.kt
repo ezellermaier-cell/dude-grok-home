@@ -252,13 +252,15 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
             .putString(name + "_cipher", Base64.encodeToString(encrypted, Base64.NO_WRAP)).apply()
     }
 
-    private fun loadSecret(name: String): String = try {
-        val iv = prefs.getString(name + "_iv", null) ?: return ""
-        val encrypted = prefs.getString(name + "_cipher", null) ?: return ""
-        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
-        cipher.init(Cipher.DECRYPT_MODE, secretKey(), GCMParameterSpec(128, Base64.decode(iv, Base64.NO_WRAP)))
-        String(cipher.doFinal(Base64.decode(encrypted, Base64.NO_WRAP)), Charsets.UTF_8)
-    } catch (_: Exception) { "" }
+    private fun loadSecret(name: String): String {
+        return try {
+            val iv = prefs.getString(name + "_iv", null) ?: return ""
+            val encrypted = prefs.getString(name + "_cipher", null) ?: return ""
+            val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+            cipher.init(Cipher.DECRYPT_MODE, secretKey(), GCMParameterSpec(128, Base64.decode(iv, Base64.NO_WRAP)))
+            String(cipher.doFinal(Base64.decode(encrypted, Base64.NO_WRAP)), Charsets.UTF_8)
+        } catch (_: Exception) { "" }
+    }
 
     private fun saveApiKey(value: String) = saveSecret("xai", value)
     private fun loadApiKey(): String = loadSecret("xai")
