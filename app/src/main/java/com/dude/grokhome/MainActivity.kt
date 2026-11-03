@@ -131,17 +131,29 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
         val text = raw.trim()
         transcript.text = "You: $text"
         val lower = text.lowercase(Locale.ROOT)
-        val local = when {
-            lower.contains("hello") || lower.contains("hey dude") ->
-                "Well hello there. I was just standing here looking decorative."
-            lower.contains("your name") -> "I'm Dude. Like Alexa, but with better banter and fewer weird shopping suggestions."
-            lower.contains("joke") -> "I told my smart lights a joke. They were delighted. It was a very bright audience."
-            lower.contains("time") -> "I can tell time, but I refuse to judge how late you're staying up."
-            lower.contains("turn on") || lower.contains("turn off") || lower.contains("lights") ->
-                "I heard a smart-home command. Device control isn't connected yet, so nobody's lights changed. I'm enthusiastic, not magical."
-            else -> null
+        val local = LocalCommandRouter().route(text,
+            prefs.getString("ha_light_entity", "").orEmpty(),
+            prefs.getString("ha_switch_entity", "").orEmpty())
+        if (local != null) {
+            if (local.domain != null && local.service != null && local.entityId != null) {
+                val haUrl = prefs.getString("ha_url", "").orEmpty()
+                val haToken = loadSecret("ha_token")
+                if (haUrl.isBlank() || haToken.isBlank()) {
+                    say("Add your Home Assistant URL and token in Settings to control devices.")
+                    return
+                }
+                status.text = "Connecting to your smart home…"
+                worker.execute {
+                    try {
+                        HomeAssistantClient(haUrl, haToken).callService(local.domain, local.service, local.entityId)
+                        runOnUiThread { say(local.reply + " Done.") }
+                    } catch (e: Exception) {
+                        runOnUiThread { say("Home Assistant error: " + (e.message ?: "connection error")) }
+                    }
+                }
+            } else say(local.reply)
+            return
         }
-        if (local != null) { say(local); return }
         val key = loadApiKey()
         if (key.isBlank()) {
             say("Good question. Add your xAI API key in Settings and I'll put my giant brain to work.")
@@ -187,75 +199,69 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
     }
 
     private fun settingsDialog() {
-        showApiKeySetup()
-    }
-
-    private fun showApiKeySetup() {
-        val input = EditText(this).apply {
-            hint = "Paste xAI API key"
-            inputType = 129
+        val layout = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(24, 8, 24, 0) }
+        fun field(label: String, value: String = "", secret: Boolean = false): EditText {
+            layout.addView(TextView(this).apply { text = label; textSize = 13f })
+            return EditText(this).apply {
+                hint = label
+                setText(value)
+                if (secret) inputType = 129
+                layout.addView(this)
+            }
         }
-        val hasKey = loadApiKey().isNotBlank()
-        AlertDialog.Builder(this)
-            .setTitle(if (hasKey) "Update Grok API key" else "Set up Dude's AI")
-            .setMessage("Optional. Basic commands work without a key. Add an xAI API key to enable AI conversations. This uses separate xAI API billing—not your Grok/X chatbot subscription or its credits. The key is encrypted and stored only on this tablet; it is never uploaded to GitHub.")
-            .setView(input)
-            .setPositiveButton("Save key") { _, _ ->
-                val value = input.text.toString().trim()
-                if (value.isNotBlank()) {
-                    try {
-                        saveApiKey(value)
-                        say("API key saved securely on this tablet. AI replies are ready.")
-                    } catch (_: Exception) {
-                        say("I couldn't securely save that key. Please try again.")
-                    }
-                } else say("No key entered. Local commands will still work.")
+        val api = field("Optional xAI API key (separate API billing)", secret = true)
+        val url = field("Home Assistant URL (example: http://192.168.1.20:8123)", prefs.getString("ha_url", "").orEmpty())
+        val token = field("Home Assistant long-lived access token", secret = true)
+        val light = field("Light entity ID (example: light.living_room)", prefs.getString("ha_light_entity", "").orEmpty())
+        val plug = field("Smart plug entity ID (example: switch.plug)", prefs.getString("ha_switch_entity", "").orEmpty())
+        layout.addView(TextView(this).apply { text = "Home Assistant is free/open-source software and must run on an always-on computer or supported server. Add your brands inside Home Assistant first. Secrets are encrypted on this tablet."; textSize = 12f })
+        AlertDialog.Builder(this).setTitle("DUDE connections")
+            .setView(ScrollView(this).apply { addView(layout) })
+            .setPositiveButton("Save") { _, _ ->
+                if (api.text.toString().isNotBlank()) saveSecret("xai", api.text.toString().trim())
+                prefs.edit().putString("ha_url", url.text.toString().trim())
+                    .putString("ha_light_entity", light.text.toString().trim())
+                    .putString("ha_switch_entity", plug.text.toString().trim()).apply()
+                if (token.text.toString().isNotBlank()) saveSecret("ha_token", token.text.toString().trim())
+                say("Connections saved on this tablet.")
             }
-            .setNeutralButton(if (hasKey) "Remove key" else "Use local only") { _, _ ->
-                if (hasKey) {
-                    prefs.edit().remove("xai_cipher").remove("xai_iv").apply()
-                    say("API key removed. I'll stick to local commands.")
-                } else say("Local-only mode enabled. No xAI API calls will be made.")
+            .setNeutralButton("Remove AI key") { _, _ ->
+                prefs.edit().remove("xai_cipher").remove("xai_iv").apply()
+                say("AI key removed. Local commands can still work.")
             }
-            .setNegativeButton("Later", null)
-            .show()
+            .setNegativeButton("Cancel", null).show()
     }
 
     private fun secretKey(): SecretKey {
         val store = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
-        val alias = "dude_xai_api_key"
+        val alias = "dude_local_secrets"
         val existing = store.getKey(alias, null) as? SecretKey
         if (existing != null) return existing
         val generator = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, "AndroidKeyStore")
-        generator.init(KeyGenParameterSpec.Builder(
-            alias, KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT
-        ).setBlockModes(KeyProperties.BLOCK_MODE_GCM)
-            .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
+        generator.init(KeyGenParameterSpec.Builder(alias, KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT)
+            .setBlockModes(KeyProperties.BLOCK_MODE_GCM).setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
             .setRandomizedEncryptionRequired(true).build())
         return generator.generateKey()
     }
 
-    private fun saveApiKey(value: String) {
+    private fun saveSecret(name: String, value: String) {
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
         cipher.init(Cipher.ENCRYPT_MODE, secretKey())
         val encrypted = cipher.doFinal(value.toByteArray(Charsets.UTF_8))
-        prefs.edit()
-            .putString("xai_iv", Base64.encodeToString(cipher.iv, Base64.NO_WRAP))
-            .putString("xai_cipher", Base64.encodeToString(encrypted, Base64.NO_WRAP))
-            .remove("xai_key")
-            .apply()
+        prefs.edit().putString(name + "_iv", Base64.encodeToString(cipher.iv, Base64.NO_WRAP))
+            .putString(name + "_cipher", Base64.encodeToString(encrypted, Base64.NO_WRAP)).apply()
     }
 
-    private fun loadApiKey(): String {
-        return try {
-            val iv = prefs.getString("xai_iv", null) ?: return ""
-            val encrypted = prefs.getString("xai_cipher", null) ?: return ""
-            val cipher = Cipher.getInstance("AES/GCM/NoPadding")
-            cipher.init(Cipher.DECRYPT_MODE, secretKey(), GCMParameterSpec(128, Base64.decode(iv, Base64.NO_WRAP)))
-            String(cipher.doFinal(Base64.decode(encrypted, Base64.NO_WRAP)), Charsets.UTF_8)
-        } catch (_: Exception) { "" }
-    }
+    private fun loadSecret(name: String): String = try {
+        val iv = prefs.getString(name + "_iv", null) ?: return ""
+        val encrypted = prefs.getString(name + "_cipher", null) ?: return ""
+        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+        cipher.init(Cipher.DECRYPT_MODE, secretKey(), GCMParameterSpec(128, Base64.decode(iv, Base64.NO_WRAP)))
+        String(cipher.doFinal(Base64.decode(encrypted, Base64.NO_WRAP)), Charsets.UTF_8)
+    } catch (_: Exception) { "" }
 
+    private fun saveApiKey(value: String) = saveSecret("xai", value)
+    private fun loadApiKey(): String = loadSecret("xai")
     override fun onInit(statusCode: Int) {
         if (statusCode == TextToSpeech.SUCCESS) tts.language = Locale.US
     }
