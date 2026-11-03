@@ -81,10 +81,12 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
         }
         root.addView(transcript, LinearLayout.LayoutParams(-1, 0, 1f).apply { setMargins(0, 16, 0, 16) })
         val buttons = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
-        val talk = makeButton("🎙  TALK TO DUDE") { startListening() }
+        val talk = makeButton("🎙  TALK") { startListening() }
+        val devices = makeButton("⌂  DEVICES") { discoverDevices() }
         val settings = makeButton("⚙  SETTINGS") { settingsDialog() }
-        buttons.addView(talk, LinearLayout.LayoutParams(0, 64, 1f).apply { setMargins(4, 4, 8, 4) })
-        buttons.addView(settings, LinearLayout.LayoutParams(0, 64, 1f).apply { setMargins(8, 4, 4, 4) })
+        buttons.addView(talk, LinearLayout.LayoutParams(0, 64, 1f).apply { setMargins(4, 4, 4, 4) })
+        buttons.addView(devices, LinearLayout.LayoutParams(0, 64, 1f).apply { setMargins(4, 4, 4, 4) })
+        buttons.addView(settings, LinearLayout.LayoutParams(0, 64, 1f).apply { setMargins(4, 4, 4, 4) })
         root.addView(buttons)
         val note = TextView(this).apply {
             text = "LOCAL COMMANDS • Optional xAI API • Tap to talk"
@@ -99,6 +101,54 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
         setBackgroundColor(Color.rgb(30, 105, 160)); setOnClickListener { action() }
     }
 
+    private fun discoverDevices() {
+        val haUrl = prefs.getString("ha_url", "").orEmpty()
+        val haToken = loadSecret("ha_token")
+        if (haUrl.isBlank() || haToken.isBlank()) {
+            say("Connect Home Assistant in Settings first. Add your Smart Life, LG, Sensi and Shark integrations there, then I can discover the entities they expose.")
+            return
+        }
+        status.text = "Looking for your connected home devices…"
+        worker.execute {
+            try {
+                val states = JSONArray(HomeAssistantClient(haUrl, haToken).states())
+                val rows = ArrayList<String>()
+                val ids = ArrayList<String>()
+                val names = ArrayList<String>()
+                val statesById = HashMap<String, String>()
+                val supported = setOf("light", "switch", "fan", "cover", "climate", "vacuum", "sensor", "binary_sensor", "lock", "media_player")
+                for (i in 0 until states.length()) {
+                    val item = states.optJSONObject(i) ?: continue
+                    val entity = item.optString("entity_id")
+                    if (entity.substringBefore(".") !in supported) continue
+                    val attrs = item.optJSONObject("attributes") ?: JSONObject()
+                    val name = attrs.optString("friendly_name", entity)
+                    val state = item.optString("state", "unknown")
+                    ids.add(entity); names.add(name); statesById[entity] = state
+                    rows.add("$name  •  $state\n$entity")
+                }
+                runOnUiThread {
+                    if (rows.isEmpty()) { say("Home Assistant connected, but it returned no supported device entities. Check your integrations."); return@runOnUiThread }
+                    status.text = "Found ${rows.size} Home Assistant entities"
+                    AlertDialog.Builder(this).setTitle("Your connected devices")
+                        .setItems(rows.toTypedArray()) { _, which ->
+                            val entity = ids[which]
+                            val domain = entity.substringBefore(".")
+                            if (domain in setOf("light", "switch", "fan", "cover")) {
+                                val current = statesById[entity].orEmpty()
+                                val service = if (current == "on" || current == "open") "turn_off" else "turn_on"
+                                worker.execute {
+                                    try {
+                                        HomeAssistantClient(haUrl, haToken).callService(domain, service, entity)
+                                        runOnUiThread { say("${if (service == "turn_on") "Turning on" else "Turning off"} ${names[which]}.") }
+                                    } catch (e: Exception) { runOnUiThread { say("Could not control ${names[which]}: ${e.message ?: "connection error"}") } }
+                                }
+                            } else say("${names[which]} is reporting ${statesById[entity]}. Status is available; direct controls for this device type are not configured yet.")
+                        }.setNegativeButton("Close", null).show()
+                }
+            } catch (e: Exception) { runOnUiThread { say("I could not discover devices. Check the Home Assistant address, token and Wi-Fi. ${e.message ?: ""}") } }
+        }
+    }
     private fun startListening() {
         if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), requestMic); return
