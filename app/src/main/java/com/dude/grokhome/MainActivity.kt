@@ -4,6 +4,9 @@ import android.Manifest
 import android.app.Activity
 import android.app.AlertDialog
 import android.content.Intent
+import android.content.Context
+import android.content.BroadcastReceiver
+import android.content.IntentFilter
 import android.content.SharedPreferences
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
@@ -48,6 +51,13 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
     private val blue = Color.rgb(87, 190, 255)
     private val requestVoice = 501
     private val requestMic = 502
+    private var wakeReceiverRegistered = false
+    private val wakeReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            val phrase = intent?.getStringExtra(WakeWordService.EXTRA_COMMAND).orEmpty()
+            if (phrase == WakeWordService.WAKE_ONLY) say("I'm listening. What's up?") else if (phrase.isNotBlank()) handleText(phrase)
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -60,9 +70,11 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
         buildUi()
         updateClock()
         refreshDashboard()
+        registerWakeReceiver()
+        if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) startWakeWordService()
+        else requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), requestMic)
         mainHandler.post(object : Runnable { override fun run() { updateClock(); mainHandler.postDelayed(this, 1000) } })
         mainHandler.postDelayed(object : Runnable { override fun run() { refreshDashboard(); mainHandler.postDelayed(this, 30 * 60 * 1000L) } }, 30 * 60 * 1000L)
-        if (loadApiKey().isBlank()) settingsDialog()
     }
 
     private fun buildUi() {
@@ -136,7 +148,7 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
         root.addView(transcript, LinearLayout.LayoutParams(-1, 0, 1f).apply { setMargins(4, 4, 4, 10) })
 
         val buttons = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
-        val talk = makeButton("🎙  TALK") { startListening() }
+        val talk = makeButton("🎙  HEY DUDE") { startWakeWordService(); say("Always-listening mode is running. Say Hey Dude, then your command.") }
         val devices = makeButton("⌂  SMART HOME") { discoverDevices() }
         val assistant = makeButton("◉  GOOGLE") { launchGoogleAssistant() }
         val settings = makeButton("⚙  SETTINGS") { settingsDialog() }
@@ -152,6 +164,28 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
         }
         root.addView(note, LinearLayout.LayoutParams(-1, 24))
         setContentView(root)
+    }
+
+    private fun registerWakeReceiver() {
+        if (wakeReceiverRegistered) return
+        val filter = IntentFilter(WakeWordService.ACTION_WAKE_COMMAND)
+        if (android.os.Build.VERSION.SDK_INT >= 33) registerReceiver(wakeReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        else registerReceiver(wakeReceiver, filter)
+        wakeReceiverRegistered = true
+    }
+
+    private fun startWakeWordService() {
+        if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), requestMic)
+            return
+        }
+        try {
+            val intent = Intent(this, WakeWordService::class.java)
+            if (android.os.Build.VERSION.SDK_INT >= 26) startForegroundService(intent) else startService(intent)
+            status.text = "● ALWAYS LISTENING  •  SAY HEY DUDE"
+        } catch (e: Exception) {
+            say("I couldn't start the microphone service: " + (e.message ?: "permission required"))
+        }
     }
 
     private fun updateClock() {
@@ -289,7 +323,7 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, results: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, results)
-        if (requestCode == requestMic && results.firstOrNull() == PackageManager.PERMISSION_GRANTED) startListening()
+        if (requestCode == requestMic && results.firstOrNull() == PackageManager.PERMISSION_GRANTED) startWakeWordService()
         else if (requestCode == requestMic) say("No microphone permission. I promise I wasn't eavesdropping anyway.")
     }
 
@@ -320,42 +354,7 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
             } else say(local.reply)
             return
         }
-        val key = loadApiKey()
-        if (key.isBlank()) {
-            say("Good question. Add your xAI API key in Settings and I'll put my giant brain to work.")
-            return
-        }
-        status.text = "Dude is thinking…"
-        worker.execute {
-            val answer = askGrok(key, text)
-            runOnUiThread { say(answer) }
-        }
-    }
-
-    private fun askGrok(key: String, prompt: String): String {
-        var connection: HttpURLConnection? = null
-        return try {
-            connection = (URL("https://api.x.ai/v1/chat/completions").openConnection() as HttpURLConnection).apply {
-                requestMethod = "POST"; connectTimeout = 20000; readTimeout = 30000
-                doOutput = true
-                setRequestProperty("Content-Type", "application/json")
-                setRequestProperty("Authorization", "Bearer $key")
-            }
-            val messages = JSONArray()
-                .put(JSONObject().put("role", "system").put("content",
-                    "You are Dude, a funny, quirky, warm smart-home assistant. Be witty but not mean. Keep spoken answers concise. Never claim to have controlled a device unless a real integration confirms it."))
-                .put(JSONObject().put("role", "user").put("content", prompt))
-            val body = JSONObject().put("model", "grok-3-mini").put("messages", messages).put("temperature", 0.8)
-            connection.outputStream.use { it.write(body.toString().toByteArray(Charsets.UTF_8)) }
-            val code = connection.responseCode
-            val stream = if (code in 200..299) connection.inputStream else connection.errorStream
-            val response = stream.bufferedReader().use { it.readText() }
-            val json = JSONObject(response)
-            if (code !in 200..299) "Grok returned an error: ${json.optString("error", response).take(240)}"
-            else json.getJSONArray("choices").getJSONObject(0).getJSONObject("message").getString("content")
-        } catch (e: Exception) {
-            "I couldn't reach Grok. Check the internet and API key. ${e.message ?: ""}"
-        } finally { connection?.disconnect() }
+        say("I can handle smart-home commands and basic local requests right now. Cloud AI is disabled; no API key is used.")
     }
 
     private fun say(message: String) {
@@ -375,7 +374,6 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
                 layout.addView(this)
             }
         }
-        val api = field("Optional xAI API key (separate API billing)", secret = true)
         val city = field("Weather city (example: Newark, NJ)", prefs.getString("weather_city", "").orEmpty())
         val url = field("Home Assistant URL (example: http://192.168.1.20:8123)", prefs.getString("ha_url", "").orEmpty())
         val token = field("Home Assistant long-lived access token", secret = true)
@@ -385,7 +383,6 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
         AlertDialog.Builder(this).setTitle("DUDE connections")
             .setView(ScrollView(this).apply { addView(layout) })
             .setPositiveButton("Save") { _, _ ->
-                if (api.text.toString().isNotBlank()) saveSecret("xai", api.text.toString().trim())
                 prefs.edit().putString("weather_city", city.text.toString().trim())
                     .putString("ha_url", url.text.toString().trim())
                     .putString("ha_light_entity", light.text.toString().trim())
@@ -393,10 +390,6 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
                 if (token.text.toString().isNotBlank()) saveSecret("ha_token", token.text.toString().trim())
                 say("Connections saved. Updating your dashboard.")
                 refreshDashboard()
-            }
-            .setNeutralButton("Remove AI key") { _, _ ->
-                prefs.edit().remove("xai_cipher").remove("xai_iv").apply()
-                say("AI key removed. Local commands can still work.")
             }
             .setNegativeButton("Cancel", null).show()
     }
@@ -438,6 +431,7 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
     }
 
     override fun onDestroy() {
+        if (wakeReceiverRegistered) { unregisterReceiver(wakeReceiver); wakeReceiverRegistered = false }
         if (::tts.isInitialized) { tts.stop(); tts.shutdown() }
         worker.shutdownNow()
         super.onDestroy()
