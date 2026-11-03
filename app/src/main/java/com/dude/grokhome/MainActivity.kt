@@ -4,6 +4,14 @@ import android.Manifest
 import android.app.Activity
 import android.content.Intent
 import android.content.SharedPreferences
+import android.security.keystore.KeyGenParameterSpec
+import android.security.keystore.KeyProperties
+import android.util.Base64
+import javax.crypto.Cipher
+import javax.crypto.KeyGenerator
+import javax.crypto.SecretKey
+import javax.crypto.spec.GCMParameterSpec
+import java.security.KeyStore
 import android.content.pm.PackageManager
 import android.graphics.Color
 import android.os.Bundle
@@ -39,6 +47,7 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
         prefs = getSharedPreferences("dude_private", MODE_PRIVATE)
         tts = TextToSpeech(this, this)
         buildUi()
+        if (loadApiKey().isBlank()) showApiKeySetup()
     }
 
     private fun buildUi() {
@@ -75,7 +84,7 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
         buttons.addView(settings, LinearLayout.LayoutParams(0, 64, 1f).apply { setMargins(8, 4, 4, 4) })
         root.addView(buttons)
         val note = TextView(this).apply {
-            text = "FIRST BUILD • Tap to talk • Local quick replies • Grok AI when configured"
+            text = "LOCAL COMMANDS • Optional xAI API • Tap to talk"
             textSize = 11f; setTextColor(Color.GRAY); gravity = Gravity.CENTER
         }
         root.addView(note, LinearLayout.LayoutParams(-1, 32))
@@ -133,7 +142,7 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
             else -> null
         }
         if (local != null) { say(local); return }
-        val key = prefs.getString("xai_key", "").orEmpty()
+        val key = loadApiKey()
         if (key.isBlank()) {
             say("Good question. Add your xAI API key in Settings and I'll put my giant brain to work.")
             return
@@ -178,18 +187,73 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
     }
 
     private fun settingsDialog() {
+        showApiKeySetup()
+    }
+
+    private fun showApiKeySetup() {
         val input = EditText(this).apply {
-            hint = "Paste xAI API key"; setText(prefs.getString("xai_key", ""))
+            hint = "Paste xAI API key"
             inputType = 129
         }
-        AlertDialog.Builder(this).setTitle("Dude settings")
-            .setMessage("Your API key is stored privately on this tablet. Never share it or commit it to GitHub.")
+        val hasKey = loadApiKey().isNotBlank()
+        AlertDialog.Builder(this)
+            .setTitle(if (hasKey) "Update Grok API key" else "Set up Dude's AI")
+            .setMessage("Optional. Basic commands work without a key. Add an xAI API key to enable AI conversations. This uses separate xAI API billing—not your Grok/X chatbot subscription or its credits. The key is encrypted and stored only on this tablet; it is never uploaded to GitHub.")
             .setView(input)
-            .setPositiveButton("Save") { _, _ ->
-                prefs.edit().putString("xai_key", input.text.toString().trim()).apply()
-                say("Settings saved. My brain cells are now on standby.")
+            .setPositiveButton("Save key") { _, _ ->
+                val value = input.text.toString().trim()
+                if (value.isNotBlank()) {
+                    try {
+                        saveApiKey(value)
+                        say("API key saved securely on this tablet. AI replies are ready.")
+                    } catch (_: Exception) {
+                        say("I couldn't securely save that key. Please try again.")
+                    }
+                } else say("No key entered. Local commands will still work.")
             }
-            .setNegativeButton("Cancel", null).show()
+            .setNeutralButton(if (hasKey) "Remove key" else "Use local only") { _, _ ->
+                if (hasKey) {
+                    prefs.edit().remove("xai_cipher").remove("xai_iv").apply()
+                    say("API key removed. I'll stick to local commands.")
+                } else say("Local-only mode enabled. No xAI API calls will be made.")
+            }
+            .setNegativeButton("Later", null)
+            .show()
+    }
+
+    private fun secretKey(): SecretKey {
+        val store = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
+        val alias = "dude_xai_api_key"
+        val existing = store.getKey(alias, null) as? SecretKey
+        if (existing != null) return existing
+        val generator = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, "AndroidKeyStore")
+        generator.init(KeyGenParameterSpec.Builder(
+            alias, KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT
+        ).setBlockModes(KeyProperties.BLOCK_MODE_GCM)
+            .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
+            .setRandomizedEncryptionRequired(true).build())
+        return generator.generateKey()
+    }
+
+    private fun saveApiKey(value: String) {
+        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+        cipher.init(Cipher.ENCRYPT_MODE, secretKey())
+        val encrypted = cipher.doFinal(value.toByteArray(Charsets.UTF_8))
+        prefs.edit()
+            .putString("xai_iv", Base64.encodeToString(cipher.iv, Base64.NO_WRAP))
+            .putString("xai_cipher", Base64.encodeToString(encrypted, Base64.NO_WRAP))
+            .remove("xai_key")
+            .apply()
+    }
+
+    private fun loadApiKey(): String {
+        return try {
+            val iv = prefs.getString("xai_iv", null) ?: return ""
+            val encrypted = prefs.getString("xai_cipher", null) ?: return ""
+            val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+            cipher.init(Cipher.DECRYPT_MODE, secretKey(), GCMParameterSpec(128, Base64.decode(iv, Base64.NO_WRAP)))
+            String(cipher.doFinal(Base64.decode(encrypted, Base64.NO_WRAP)), Charsets.UTF_8)
+        } catch (_: Exception) { "" }
     }
 
     override fun onInit(statusCode: Int) {
