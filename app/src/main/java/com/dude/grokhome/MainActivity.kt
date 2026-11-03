@@ -382,16 +382,20 @@ class MainActivity : Activity() {
             "WEATHER" -> buildWeatherPage()
             else -> dashboardWeb
         }
-        mainScroll.addView(page)
+        mainScroll.addView(page, ScrollView.LayoutParams(-1, -2))
+        mainScroll.post { mainScroll.scrollTo(0, 0) }
     }
 
     private fun pageShell(title: String, description: String): LinearLayout {
+        val horizontal = if (resources.configuration.screenWidthDp >= 720) 26 else 16
         val page = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(2, 16, 2, 22)
+            setPadding(horizontal, 20, horizontal, 30)
+            setBackgroundColor(Color.rgb(5, 12, 27))
+            clipToPadding = false
         }
-        page.addView(txt(title, 25f, Color.rgb(24, 43, 66), true))
-        page.addView(txt(description, 12f, Color.rgb(105, 124, 146)).apply { setPadding(0, 4, 0, 18) })
+        page.addView(txt(title, 27f, Color.WHITE, true).apply { letterSpacing = 0.01f })
+        page.addView(txt(description, 12f, Color.rgb(151, 177, 207)).apply { setPadding(0, 6, 0, 20) })
         return page
     }
 
@@ -496,11 +500,27 @@ class MainActivity : Activity() {
     private fun buildNewsPage(): LinearLayout {
         val page = pageShell("News", "Top headlines from your selected news feed.")
         val list = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        if (stories.isEmpty()) list.addView(txt("Headlines are loading. Check your connection and refresh.", 12f, Color.rgb(105, 124, 146)))
+        if (stories.isEmpty()) list.addView(txt("Headlines are loading. Check your connection and refresh.", 12f, Color.rgb(151, 177, 207)))
         stories.forEach { story ->
-            val row = card(story.title, story.source.ifBlank { "NEWS" })
-            row.addView(button("READ HEADLINE") { speak(story.title) }, LinearLayout.LayoutParams(-1, 40).apply { topMargin = 8 })
-            list.addView(row, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = 9 })
+            val row = card(story.title, story.source.ifBlank { "TOP MEDIA" })
+            val image = ImageView(this).apply {
+                scaleType = ImageView.ScaleType.CENTER_CROP
+                background = grad(Color.rgb(16, 45, 76), Color.rgb(23, 74, 105), Color.rgb(47, 130, 165), 14f)
+                contentDescription = "News image"
+            }
+            row.addView(image, LinearLayout.LayoutParams(-1, if (resources.configuration.screenWidthDp >= 600) 190 else 150).apply { bottomMargin = 10 })
+            if (story.imageUrl.isNotBlank()) io.execute {
+                try {
+                    val connection = URL(story.imageUrl).openConnection() as HttpURLConnection
+                    connection.connectTimeout = 7000; connection.readTimeout = 9000
+                    connection.setRequestProperty("User-Agent", "Mozilla/5.0 DUDEHome/2.0")
+                    val bitmap = connection.inputStream.use { BitmapFactory.decodeStream(it) }
+                    connection.disconnect()
+                    if (bitmap != null) runOnUiThread { image.setImageBitmap(bitmap) }
+                } catch (_: Exception) { }
+            }
+            row.addView(button("READ HEADLINE") { speak(story.title) }, LinearLayout.LayoutParams(-1, 44).apply { topMargin = 8 })
+            list.addView(row, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = 12 })
         }
         page.addView(list)
         page.addView(button("REFRESH HEADLINES") { loadDashboard(); showSectionTab("NEWS") },
@@ -584,8 +604,10 @@ class MainActivity : Activity() {
     private fun buildSettingsPage(): LinearLayout {
         val page = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(20, 22, 20, 30)
+            val horizontal = if (resources.configuration.screenWidthDp >= 720) 26 else 16
+            setPadding(horizontal, 20, horizontal, 30)
             setBackgroundColor(Color.rgb(5, 12, 27))
+            clipToPadding = false
         }
         fun label(text: String, size: Float = 11f, color: Int = muted, bold: Boolean = false) =
             txt(text, size, color, bold)
