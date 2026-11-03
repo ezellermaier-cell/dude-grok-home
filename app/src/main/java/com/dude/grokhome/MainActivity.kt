@@ -305,7 +305,7 @@ class MainActivity : Activity() {
                 textSize = 9f
                 maxLines = 2
                 setTextColor(if (active) Color.rgb(35, 112, 190) else Color.rgb(106, 124, 145))
-                typeface = Typeface.create("sans-serif", if (active) Typeface.BOLD else Typeface.MEDIUM)
+                typeface = Typeface.create("sans-serif", if (active) Typeface.BOLD else Typeface.NORMAL)
                 setBackgroundColor(Color.TRANSPARENT)
                 setOnClickListener { showSectionTab(tab) }
             }
