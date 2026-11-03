@@ -522,20 +522,7 @@ class MainActivity : Activity() {
             }.setNegativeButton("CANCEL", null).show()
     }
 
-    private fun showDashboardTab() {
-        applySavedDashboardLayout(dashboardFooter)
-        mainScroll.removeAllViews()
-        mainScroll.addView(dashboardPage)
-        mainScroll.post { dashboardPage.minimumHeight = mainScroll.height }
-    }
-
-    private fun showSettingsTab() {
-        mainScroll.removeAllViews()
-        mainScroll.addView(settingsPage)
-        mainScroll.post { settingsPage.minimumHeight = mainScroll.height }
-    }
-
-    private fun buildSettingsPage(): LinearLayout {
+    private fun showDashboardTab() { showSectionTab("HOME") }\n\n    private fun showSettingsTab() { showSectionTab("SETTINGS") }\n\n    private fun buildSettingsPage(): LinearLayout {
         val page = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(18, 18, 18, 22) }
         fun section(title: String) { page.addView(txt(title, 13f, mint, true).apply { setPadding(0, 16, 0, 8) }) }
         fun field(title: String, value: String = "", type: Int = InputType.TYPE_CLASS_TEXT): EditText {
