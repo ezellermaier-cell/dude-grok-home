@@ -195,9 +195,7 @@ class MainActivity : Activity() {
 
         val news = panel("▤  GOOGLE NEWS  /  TOP STORIES", cyan)
         val newsRowContainer = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        newsRow = LinearLayout(this).apply {
-            orientation = if (wide) LinearLayout.VERTICAL else LinearLayout.HORIZONTAL
-        }
+        newsRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         news.addView(newsRow, LinearLayout.LayoutParams(-1, 0, 1f))
         news.addView(button("VIEW NEWS  →") { handle("read the news") }, LinearLayout.LayoutParams(-1, 40))
 
