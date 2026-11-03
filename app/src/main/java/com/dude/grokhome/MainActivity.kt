@@ -69,7 +69,17 @@ class MainActivity : Activity() {
         prefs = getSharedPreferences("dude_private", MODE_PRIVATE)
         tts = TextToSpeech(this) { result ->
             ttsReady = result == TextToSpeech.SUCCESS
-            if (ttsReady) tts.language = Locale.US
+            if (ttsReady) {
+                val voices = tts.voices.orEmpty()
+                val saved = prefs.getString("tts_voice", "").orEmpty()
+                val selected = voices.firstOrNull { it.name == saved }
+                    ?: voices.filter { it.locale.language == "en" }
+                        .sortedWith(compareByDescending<android.speech.tts.Voice> { it.quality }.thenBy { it.isNetworkConnectionRequired })
+                        .firstOrNull()
+                if (selected != null) tts.voice = selected else tts.language = Locale.US
+                tts.setSpeechRate(0.94f)
+                tts.setPitch(0.93f)
+            }
         }
         buildUi()
         tick()
@@ -238,6 +248,8 @@ class MainActivity : Activity() {
         response.text = message
         setState("READY")
         if (ttsReady) {
+            tts.setSpeechRate(0.94f)
+            tts.setPitch(0.93f)
             @Suppress("DEPRECATION")
             tts.speak(message, TextToSpeech.QUEUE_FLUSH, null)
         }
@@ -415,6 +427,8 @@ class MainActivity : Activity() {
         val light = field("Main light entity ID", prefs.getString("ha_light_entity", "").orEmpty())
         val plug = field("Smart plug entity ID", prefs.getString("ha_switch_entity", "").orEmpty())
         val vacuum = field("Vacuum entity ID", prefs.getString("ha_vacuum_entity", "").orEmpty())
+        box.addView(button("CHOOSE DUDE'S VOICE") { chooseVoice() }, LinearLayout.LayoutParams(-1, 44))
+        box.addView(txt("Voice options depend on voices installed on this tablet. Install a higher-quality English voice in Android text-to-speech settings for the most natural sound.", 10f, muted))
         box.addView(txt("Weather and headlines use free sources. Home Assistant is optional but required for device control. No paid AI API is configured.", 10f, muted))
         AlertDialog.Builder(this).setTitle("DUDE SETTINGS").setView(ScrollView(this).apply { addView(box) })
             .setPositiveButton("SAVE") { _, _ ->
@@ -426,6 +440,26 @@ class MainActivity : Activity() {
                 if (token.text.isNotBlank()) saveSecret("ha_token", token.text.toString().trim())
                 loadDashboard(); speak("Settings saved. Look at me, being configurable.")
             }.setNegativeButton("CANCEL", null).show()
+    }
+
+
+    private fun chooseVoice() {
+        if (!ttsReady) { speak("My voice engine is still warming up."); return }
+        val choices = tts.voices.orEmpty().filter { it.locale.language == "en" }
+            .sortedWith(compareByDescending<android.speech.tts.Voice> { it.quality }.thenBy { it.isNetworkConnectionRequired })
+        if (choices.isEmpty()) { speak("I couldn't find another English voice installed on this tablet."); return }
+        val labels = choices.map {
+            val quality = if (it.quality >= android.speech.tts.Voice.QUALITY_HIGH) "High quality" else "Standard"
+            val network = if (it.isNetworkConnectionRequired) "Online" else "Offline"
+            it.name + "  •  " + quality + "  •  " + network
+        }.toTypedArray()
+        AlertDialog.Builder(this).setTitle("DUDE'S VOICE")
+            .setItems(labels) { _, which ->
+                val selected = choices[which]
+                tts.voice = selected
+                prefs.edit().putString("tts_voice", selected.name).apply()
+                speak("Nice. New voice installed. How do I sound?")
+            }.setNegativeButton("Cancel", null).show()
     }
 
     private fun secretKey(): javax.crypto.SecretKey {
