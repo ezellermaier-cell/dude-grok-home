@@ -148,9 +148,6 @@ class MainActivity : Activity() {
     }
 
     private lateinit var navBar: LinearLayout
-    private var activeSection = "HOME"
-
-    private lateinit var navBar: LinearLayout
     private lateinit var dashboardWeb: android.webkit.WebView
     private var activeSection = "HOME"
 
