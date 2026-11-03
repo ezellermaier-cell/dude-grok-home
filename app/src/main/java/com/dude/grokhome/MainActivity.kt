@@ -195,24 +195,69 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
     }
 
     private fun updateClock() {
-        if (::clockView.isInitialized) clockView.text = SimpleDateFormat("h:mm a  •  EEEE, MMM d", Locale.getDefault()).format(Date())
+        if (::clockView.isInitialized) {
+            clockView.text = SimpleDateFormat("h:mm", Locale.getDefault()).format(Date())
+            dateView.text = SimpleDateFormat("EEEE  •  MMMM d, yyyy", Locale.getDefault()).format(Date()).uppercase(Locale.getDefault())
+        }
     }
 
     private fun refreshDashboard() {
-        if (!::weatherView.isInitialized || !::newsView.isInitialized) return
+        if (!::weatherCard.isInitialized || !::newsContainer.isInitialized) return
         worker.execute {
             val city = prefs.getString("weather_city", "").orEmpty()
-            val weather = if (city.isBlank()) "◉  LIVE WEATHER\nSet a city in Settings" else "◉  LIVE WEATHER\n" + DashboardData.weather(city)
-            val news = DashboardData.headlines().replace("\n", "     •     ")
+            val weather = if (city.isBlank()) "☀   LIVE WEATHER\\nSet your city in Settings" else "☀   " + DashboardData.weather(city)
+            val stories = DashboardData.newsItems()
             runOnUiThread {
-                weatherView.text = weather
-                newsView.text = news
-                weatherView.animate().alpha(0.72f).setDuration(900).withEndAction {
-                    weatherView.animate().alpha(1f).setDuration(900).start()
-                }.start()
+                weatherCard.text = weather
+                newsContainer.removeAllViews()
+                if (stories.isEmpty()) {
+                    newsContainer.addView(TextView(this).apply {
+                        text = "News headlines are temporarily unavailable."
+                        setTextColor(Color.LTGRAY); textSize = 14f; gravity = Gravity.CENTER
+                    })
+                } else stories.take(4).forEachIndexed { index, story ->
+                    val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(4, 5, 4, 5) }
+                    val thumb = ImageView(this).apply {
+                        scaleType = ImageView.ScaleType.CENTER_CROP
+                        background = android.graphics.drawable.GradientDrawable().apply { setColor(Color.rgb(18, 66, 104)); cornerRadius = 14f }
+                        setImageResource(android.R.drawable.ic_menu_gallery)
+                    }
+                    row.addView(thumb, LinearLayout.LayoutParams(104, 70).apply { setMargins(0, 0, 10, 0) })
+                    val textCol = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_VERTICAL }
+                    textCol.addView(TextView(this).apply {
+                        text = story.title; textSize = 13f; setTextColor(Color.WHITE); maxLines = 2
+                        ellipsize = android.text.TextUtils.TruncateAt.END
+                        typeface = android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.BOLD)
+                    })
+                    textCol.addView(TextView(this).apply {
+                        text = if (story.source.isBlank()) "GOOGLE NEWS  •  TOP STORY" else story.source.uppercase(Locale.getDefault())
+                        textSize = 10f; setTextColor(Color.rgb(90, 205, 255))
+                    })
+                    row.addView(textCol, LinearLayout.LayoutParams(0, -1, 1f))
+                    newsContainer.addView(row, LinearLayout.LayoutParams(-1, 0, 1f))
+                    if (story.imageUrl.isNotBlank()) loadNewsImage(story.imageUrl, thumb)
+                    row.setOnClickListener {
+                        try { startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse("https://news.google.com/search?q=" + android.net.Uri.encode(story.title)))) } catch (_: Exception) {}
+                    }
+                    if (index < minOf(stories.size, 4) - 1) newsContainer.addView(View(this).apply { setBackgroundColor(Color.rgb(25, 86, 130)) }, LinearLayout.LayoutParams(-1, 1))
+                }
             }
         }
     }
+
+    private fun loadNewsImage(imageUrl: String, target: ImageView) {
+        worker.execute {
+            try {
+                val connection = java.net.URL(imageUrl).openConnection() as java.net.HttpURLConnection
+                connection.connectTimeout = 7000; connection.readTimeout = 7000
+                connection.setRequestProperty("User-Agent", "Mozilla/5.0 DUDE")
+                val bitmap = connection.inputStream.use { android.graphics.BitmapFactory.decodeStream(it) }
+                connection.disconnect()
+                if (bitmap != null) runOnUiThread { target.setImageBitmap(bitmap) }
+            } catch (_: Exception) { }
+        }
+    }
+
     private fun launchGoogleAssistant() {
         try {
             startActivity(Intent(Intent.ACTION_ASSIST))
