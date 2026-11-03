@@ -553,13 +553,23 @@ class MainActivity : Activity() {
         section("DASHBOARD & TABS")
         page.addView(button("MOVE TABS / CUSTOMIZE LAYOUT") { showLayoutEditor(page) }, LinearLayout.LayoutParams(-1, 48).apply { bottomMargin = 8 })
         page.addView(txt("Reorder dashboard sections, hide sections you do not use, and save your layout. Your choices stay on this tablet.", 10f, muted))
+        section("AI BRAIN • GEMINI")
+        val geminiKey = field("Gemini API key (leave blank to keep current)", "", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD)
+        val geminiStatus = if (loadSecret("gemini_api_key").isBlank()) "AI is not connected yet. Add a key to enable open-ended conversations." else "Gemini is connected. DUDE can answer general questions."
+        page.addView(txt(geminiStatus, 10f, muted))
+        page.addView(button("CLEAR GEMINI KEY") {
+            prefs.edit().remove("gemini_api_key_iv").remove("gemini_api_key_cipher").apply()
+            speak("Gemini key cleared from this tablet.")
+            showSectionTab("SETTINGS")
+        }, LinearLayout.LayoutParams(-1, 42).apply { bottomMargin = 8 })
+        page.addView(txt("The key is encrypted with Android Keystore while stored on this tablet. A key used by a mobile app can still be extracted by a determined attacker; use this only for your personal device, not a public release. Gemini free-tier limits apply, and Google may use free-tier submitted content to improve its products.", 10f, muted))
         section("VOICE & ASSISTANT")
         page.addView(button("CHOOSE DUDE'S VOICE") { chooseVoice() }, LinearLayout.LayoutParams(-1, 48).apply { bottomMargin = 8 })
         page.addView(button("START LISTENING FOR HEY DUDE") { startVoice(); speak("I'm back. What's up?") }, LinearLayout.LayoutParams(-1, 48).apply { bottomMargin = 8 })
         page.addView(txt("Voice quality depends on English voices installed on this tablet. Wake-word listening uses Android speech recognition.", 10f, muted))
         section("APP & DATA")
         page.addView(button("REFRESH WEATHER & NEWS") { loadDashboard(); speak("Refreshing the dashboard. One sec.") }, LinearLayout.LayoutParams(-1, 48).apply { bottomMargin = 8 })
-        page.addView(txt("Weather and headlines use free online sources. Smart-home control requires a Home Assistant server and a valid token. No paid AI API is configured.", 10f, muted))
+        page.addView(txt("Weather and headlines use free online sources. Smart-home control requires a Home Assistant server and a valid token.", 10f, muted))
         page.addView(button("SAVE SETTINGS") {
             prefs.edit().putString("weather_city", city.text.toString().trim())
                 .putString("ha_url", url.text.toString().trim())
@@ -567,7 +577,8 @@ class MainActivity : Activity() {
                 .putString("ha_switch_entity", plug.text.toString().trim())
                 .putString("ha_vacuum_entity", vacuum.text.toString().trim()).apply()
             if (token.text.isNotBlank()) saveSecret("ha_token", token.text.toString().trim())
-            loadDashboard(); showDashboardTab(); speak("Settings saved. All systems looking good.")
+            if (geminiKey.text.isNotBlank()) saveSecret("gemini_api_key", geminiKey.text.toString().trim())
+            loadDashboard(); showDashboardTab(); speak("Settings saved. Gemini is ready if your key is valid.")
         }, LinearLayout.LayoutParams(-1, 52).apply { topMargin = 18 })
         return page
     }
@@ -595,6 +606,31 @@ class MainActivity : Activity() {
         }
     }
 
+    private val conversation = mutableListOf<GeminiClient.Turn>()
+
+    private fun askGemini(utterance: String) {
+        val key = loadSecret("gemini_api_key")
+        if (key.isBlank()) {
+            speak("I can answer that once you connect Gemini. Open Settings and add your free-tier Gemini API key.")
+            return
+        }
+        responseViews.forEach { it.text = "Thinking… let me ask my AI brain." }
+        response.text = "Thinking… let me ask my AI brain."
+        setState("THINKING")
+        io.execute {
+            try {
+                val answer = GeminiClient(key).reply(utterance, conversation.toList())
+                conversation.add(GeminiClient.Turn("user", utterance))
+                conversation.add(GeminiClient.Turn("model", answer))
+                while (conversation.size > 16) conversation.removeAt(0)
+                runOnUiThread { speak(answer) }
+            } catch (error: Exception) {
+                val message = error.message?.takeIf { it.isNotBlank() } ?: "I couldn't reach Gemini. Check your internet connection and API key."
+                runOnUiThread { speak(message) }
+            }
+        }
+    }
+
     private fun handle(utterance: String) {
         setState("THINKING")
         when (brain.understand(utterance).kind) {
@@ -613,7 +649,7 @@ class MainActivity : Activity() {
             AssistantBrain.Kind.VACUUM_STOP -> control("vacuum", "pause", "Vacuum paused.")
             AssistantBrain.Kind.VACUUM_DOCK -> control("vacuum", "return_to_base", "Sending the vacuum home.")
             AssistantBrain.Kind.THERMOSTAT -> speak("Open Discover Devices and select your thermostat to see its available controls.")
-            AssistantBrain.Kind.UNKNOWN -> speak("I heard you say, $utterance. I don't understand every kind of conversation yet. Try asking about weather, time, news, or your devices.")
+            AssistantBrain.Kind.UNKNOWN -> askGemini(utterance)
         }
     }
 
