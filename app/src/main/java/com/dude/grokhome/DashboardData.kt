@@ -34,7 +34,7 @@ object DashboardData {
                     val item = match.groupValues[1]
                     val rawTitle = Regex("<title>(?:<!\\[CDATA\\[(.*?)]]>|(.*?))</title>", setOf(RegexOption.DOT_MATCHES_ALL))
                         .find(item)?.let { it.groupValues[1].ifBlank { it.groupValues[2] } } ?: return@mapNotNull null
-                    rawTitle.replace("&amp;", "&").replace("&quot;", "\\"")
+                    rawTitle.replace("&amp;", "&").replace("&quot;", "'")
                         .replace("&#39;", "'").replace("&apos;", "'")
                         .replace("&lt;", "<").replace("&gt;", ">").trim()
                         .takeIf { it.isNotBlank() }
