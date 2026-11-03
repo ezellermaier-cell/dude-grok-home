@@ -629,8 +629,35 @@ class MainActivity : Activity() {
             }
         }
         redraw()
+        rows.setOnDragListener { _, event ->
+            when (event.action) {
+                android.view.DragEvent.ACTION_DRAG_STARTED -> true
+                android.view.DragEvent.ACTION_DROP -> {
+                    val dragged = event.localState as? String
+                    var target: String? = null
+                    for (i in 0 until rows.childCount) {
+                        val child = rows.getChildAt(i)
+                        if (event.y >= child.top && event.y <= child.bottom) {
+                            target = child.contentDescription?.toString()
+                            break
+                        }
+                    }
+                    if (dragged != null && target != null && dragged != target) {
+                        val from = order.indexOf(dragged)
+                        val to = order.indexOf(target)
+                        if (from >= 0 && to >= 0) {
+                            val item = order.removeAt(from)
+                            order.add(to, item)
+                            redraw()
+                        }
+                    }
+                    true
+                }
+                else -> true
+            }
+        }
         editor.addView(txt("DASHBOARD LAYOUT", 18f, Color.WHITE, true))
-        editor.addView(txt("Choose what appears and use the arrows to change the order.", 11f, muted))
+        editor.addView(txt("Press and hold the drag handle, then move a section. You can also hide sections.", 11f, muted))
         editor.addView(rows)
         AlertDialog.Builder(this).setTitle("CUSTOMIZE DUDE")
             .setView(ScrollView(this).apply { addView(editor) })
