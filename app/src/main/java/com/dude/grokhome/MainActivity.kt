@@ -266,7 +266,10 @@ class MainActivity : Activity() {
         val q = utterance.lowercase(Locale.ROOT)
         if (q.contains("what time")) { speak("It's " + SimpleDateFormat("h:mm a", Locale.getDefault()).format(Date())); return }
         if (q.contains("what's the date") || q.contains("what is the date")) { speak(date.text.toString()); return }
-        if (q.contains("weather")) { speak(weather.text.toString()); return }
+        if (q.contains("weather") || q.contains("whether") || q.contains("temperature outside") || q.contains("is it raining") || q.contains("how hot is it") || q.contains("how cold is it")) {
+            speakWeather()
+            return
+        }
         if (q.contains("tell me a joke")) { speak("I asked the washing machine for a joke. It said it was on a spin cycle."); return }
         if (q.contains("what can you do")) { speak("I can show your dashboard, read headlines, check weather, and control devices connected to Home Assistant."); return }
         if (q.contains("news") || q.contains("headlines")) { speak(newsList.takeIf { it.childCount > 0 }?.let { "Here are the latest Google News headlines on your screen." } ?: "The news feed is not loaded yet."); return }
@@ -286,6 +289,33 @@ class MainActivity : Activity() {
             q.contains("turn off") && q.contains("plug") -> controlDomain("switch", "turn_off", "Turning off the plug.")
             else -> speak("I didn't catch a supported command. Try asking for the time, weather, news, or a smart-home action.")
         }
+    }
+
+    /**
+     * Speak weather as a sentence, never read dashboard decoration aloud.
+     * The old implementation passed the entire card to TTS, so Android
+     * pronounced the leading ◉ icon as "circle".
+     */
+    private fun speakWeather() {
+        val raw = weather.text.toString()
+            .replace("◉", "")
+            .replace("•", ",")
+            .replace("\\n", " ")
+            .replace(Regex("[^\\p{L}\\p{N}°%,.\\- ]"), " ")
+            .replace(Regex("\\s+"), " ")
+            .trim()
+        if (raw.isBlank() || raw.contains("set a city", ignoreCase = true)) {
+            speak("I can check that. First, choose your city in settings.")
+            return
+        }
+        if (raw.contains("unavailable", ignoreCase = true) || raw.contains("city not found", ignoreCase = true)) {
+            speak("I can't get the weather right now. Check your internet connection and city setting.")
+            return
+        }
+        val parts = raw.split(",").map { it.trim() }.filter { it.isNotBlank() }
+        val place = parts.firstOrNull().orEmpty()
+        val conditions = parts.drop(1).joinToString(". ")
+        speak(if (conditions.isBlank()) "Here's the weather for $place." else "Here's the weather in $place. $conditions.")
     }
 
     private fun controlDomain(domain: String, service: String, replyText: String) {
