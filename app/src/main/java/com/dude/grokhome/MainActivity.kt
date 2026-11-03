@@ -237,7 +237,7 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
                     newsContainer.addView(row, LinearLayout.LayoutParams(-1, 0, 1f))
                     if (story.imageUrl.isNotBlank()) loadNewsImage(story.imageUrl, thumb)
                     row.setOnClickListener {
-                        try { startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse("https://news.google.com/search?q=" + android.net.Uri.encode(story.title)))) } catch (_: Exception) {}
+                        say(story.title)
                     }
                     if (index < minOf(stories.size, 4) - 1) newsContainer.addView(View(this).apply { setBackgroundColor(Color.rgb(25, 86, 130)) }, LinearLayout.LayoutParams(-1, 1))
                 }
