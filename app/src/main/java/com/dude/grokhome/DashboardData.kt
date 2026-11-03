@@ -117,10 +117,10 @@ object DashboardData {
             val tags = Regex("<meta\\b[^>]*>", RegexOption.IGNORE_CASE).findAll(html)
             for (match in tags) {
                 val tag = match.value
-                val property = Regex("""(?:property|name)\\s*=\\s*['"]([^'"]+)['"]""", RegexOption.IGNORE_CASE)
+                val property = Regex("""(?:property|name)\s*=\\s*['"]([^'"]+)['"]""", RegexOption.IGNORE_CASE)
                     .find(tag)?.groupValues?.get(1)?.lowercase().orEmpty()
                 if (property == "og:image" || property == "og:image:url" || property == "twitter:image" || property == "twitter:image:src") {
-                    val value = Regex("""content\\s*=\\s*['"]([^'"]+)['"]""", RegexOption.IGNORE_CASE)
+                    val value = Regex("""content\s*=\\s*['"]([^'"]+)['"]""", RegexOption.IGNORE_CASE)
                         .find(tag)?.groupValues?.get(1).orEmpty()
                     if (value.isNotBlank()) {
                         val decoded = value.replace("&amp;", "&").replace("&#38;", "&").replace("&quot;", "\"")
