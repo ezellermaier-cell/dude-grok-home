@@ -21,6 +21,31 @@ object DashboardData {
         } catch (_: Exception) { "Weather unavailable — check internet" }
     }
 
+
+    data class NewsItem(val title: String, val imageUrl: String, val source: String)
+
+    fun newsItems(): List<NewsItem> {
+        return try {
+            val connection = URL("https://news.google.com/rss?hl=en-US&gl=US&ceid=US:en").openConnection() as HttpURLConnection
+            connection.connectTimeout = 10000
+            connection.readTimeout = 12000
+            connection.setRequestProperty("User-Agent", "DUDE-Home-Dashboard/1.0")
+            val xml = connection.inputStream.bufferedReader().use { it.readText() }
+            connection.disconnect()
+            Regex("<item>(.*?)</item>", setOf(RegexOption.DOT_MATCHES_ALL)).findAll(xml).take(6).mapNotNull { match ->
+                val item = match.groupValues[1]
+                fun tag(name: String): String = Regex("<$name[^>]*>(?:<!\\[CDATA\\[(.*?)]]>|(.*?))</$name>", setOf(RegexOption.DOT_MATCHES_ALL))
+                    .find(item)?.let { it.groupValues[1].ifBlank { it.groupValues[2] } }.orEmpty()
+                val title = tag("title").replace("&amp;", "&").replace("&quot;", "\\\"").replace("&#39;", "'").replace("&apos;", "'").trim()
+                if (title.isBlank()) return@mapNotNull null
+                val image = Regex("<(?:media:content|media:thumbnail|enclosure)[^>]*(?:url|href)=['\\\"]([^'\\\"]+)['\\\"][^>]*/?>")
+                    .find(item)?.groupValues?.get(1).orEmpty()
+                val source = Regex("<source[^>]*>(.*?)</source>").find(item)?.groupValues?.get(1).orEmpty()
+                NewsItem(title, image, source)
+            }.toList()
+        } catch (_: Exception) { emptyList() }
+    }
+
     fun headlines(): String {
         return try {
             val c = URL("https://news.google.com/rss?hl=en-US&gl=US&ceid=US:en").openConnection() as HttpURLConnection
