@@ -496,33 +496,7 @@ class MainActivity : Activity() {
         }.setNegativeButton("Cancel", null).show()
     }
 
-    private fun settings() {
-        val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(18, 8, 18, 0) }
-        fun field(title: String, value: String = "", type: Int = InputType.TYPE_CLASS_TEXT): EditText {
-            box.addView(txt(title, 12f, cyan, true))
-            return EditText(this).apply { setText(value); inputType = type; setSingleLine(true); box.addView(this) }
-        }
-        val city = field("Weather city", prefs.getString("weather_city", "").orEmpty())
-        val url = field("Home Assistant URL", prefs.getString("ha_url", "").orEmpty())
-        val token = field("Home Assistant long-lived access token", "", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD)
-        val light = field("Main light entity ID", prefs.getString("ha_light_entity", "").orEmpty())
-        val plug = field("Smart plug entity ID", prefs.getString("ha_switch_entity", "").orEmpty())
-        val vacuum = field("Vacuum entity ID", prefs.getString("ha_vacuum_entity", "").orEmpty())
-        box.addView(button("CHOOSE DUDE'S VOICE") { chooseVoice() }, LinearLayout.LayoutParams(-1, 44))
-        box.addView(txt("Voice options depend on voices installed on this tablet. Install a higher-quality English voice in Android text-to-speech settings for the most natural sound.", 10f, muted))
-        box.addView(txt("Weather and headlines use free sources. Home Assistant is optional but required for device control. No paid AI API is configured.", 10f, muted))
-        AlertDialog.Builder(this).setTitle("DUDE SETTINGS").setView(ScrollView(this).apply { addView(box) })
-            .setPositiveButton("SAVE") { _, _ ->
-                prefs.edit().putString("weather_city", city.text.toString().trim())
-                    .putString("ha_url", url.text.toString().trim())
-                    .putString("ha_light_entity", light.text.toString().trim())
-                    .putString("ha_switch_entity", plug.text.toString().trim())
-                    .putString("ha_vacuum_entity", vacuum.text.toString().trim()).apply()
-                if (token.text.isNotBlank()) saveSecret("ha_token", token.text.toString().trim())
-                loadDashboard(); speak("Settings saved. Look at me, being configurable.")
-            }.setNegativeButton("CANCEL", null).show()
-    }
-
+    private fun settings() { showSettingsTab() }
 
     private fun chooseVoice() {
         if (!ttsReady) { speak("My voice engine is still warming up."); return }
