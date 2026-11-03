@@ -180,7 +180,32 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
                                         runOnUiThread { say("${if (service == "turn_on") "Turning on" else "Turning off"} ${names[which]}.") }
                                     } catch (e: Exception) { runOnUiThread { say("Could not control ${names[which]}: ${e.message ?: "connection error"}") } }
                                 }
-                            } else say("${names[which]} is reporting ${statesById[entity]}. Status is available; direct controls for this device type are not configured yet.")
+                            } else if (domain == "vacuum") {
+                                AlertDialog.Builder(this).setTitle(names[which])
+                                    .setItems(arrayOf("Start cleaning", "Pause", "Return to dock")) { _, action ->
+                                        val service = when (action) { 0 -> "start"; 1 -> "pause"; else -> "return_to_base" }
+                                        worker.execute {
+                                            try { HomeAssistantClient(haUrl, haToken).callService("vacuum", service, entity); runOnUiThread { say("${names[which]}: $service command sent.") } }
+                                            catch (e: Exception) { runOnUiThread { say("Vacuum command failed: ${e.message ?: "error"}") } }
+                                        }
+                                    }.setNegativeButton("Close", null).show()
+                            } else if (domain == "climate") {
+                                val temp = EditText(this).apply { hint = "Target temperature °F"; inputType = 8194 }
+                                AlertDialog.Builder(this).setTitle("Set ${names[which]} temperature").setView(temp)
+                                    .setPositiveButton("Set") { _, _ ->
+                                        val value = temp.text.toString().toFloatOrNull()
+                                        if (value == null) say("Enter a valid temperature.") else worker.execute {
+                                            try { HomeAssistantClient(haUrl, haToken).callServiceWithData("climate", "set_temperature", entity, JSONObject().put("temperature", value)); runOnUiThread { say("Thermostat target set to ${value.toInt()} degrees.") } }
+                                            catch (e: Exception) { runOnUiThread { say("Thermostat command failed: ${e.message ?: "error"}") } }
+                                        }
+                                    }.setNegativeButton("Cancel", null).show()
+                            } else if (domain == "lock") {
+                                val service = if (statesById[entity] == "locked") "unlock" else "lock"
+                                worker.execute {
+                                    try { HomeAssistantClient(haUrl, haToken).callService("lock", service, entity); runOnUiThread { say("${names[which]}: $service command sent.") } }
+                                    catch (e: Exception) { runOnUiThread { say("Lock command failed: ${e.message ?: "error"}") } }
+                                }
+                            } else say("${names[which]} is reporting ${statesById[entity]}.")
                         }.setNegativeButton("Close", null).show()
                 }
             } catch (e: Exception) { runOnUiThread { say("I could not discover devices. Check the Home Assistant address, token and Wi-Fi. ${e.message ?: ""}") } }
