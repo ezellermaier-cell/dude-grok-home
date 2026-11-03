@@ -23,11 +23,24 @@ object DashboardData {
 
     fun headlines(): String {
         return try {
-            val c = URL("https://feeds.bbci.co.uk/news/rss.xml").openConnection() as HttpURLConnection
-            c.connectTimeout = 10000; c.readTimeout = 12000
-            val xml = c.inputStream.bufferedReader().use { it.readText() }; c.disconnect()
-            val titles = Regex("<item>.*?<title><!\\[CDATA\\[(.*?)]]></title>", setOf(RegexOption.DOT_MATCHES_ALL)).findAll(xml).take(4).map { it.groupValues[1].replace("&amp;", "&").trim() }.toList()
-            if (titles.isEmpty()) "No headlines available" else titles.mapIndexed { i, title -> "${i + 1}. $title" }.joinToString("\n")
-        } catch (_: Exception) { "Headlines unavailable — check internet" }
+            val c = URL("https://news.google.com/rss?hl=en-US&gl=US&ceid=US:en").openConnection() as HttpURLConnection
+            c.connectTimeout = 10000
+            c.readTimeout = 12000
+            c.setRequestProperty("User-Agent", "DUDE-Home-Dashboard/1.0")
+            val xml = c.inputStream.bufferedReader().use { it.readText() }
+            c.disconnect()
+            val items = Regex("<item>(.*?)</item>", setOf(RegexOption.DOT_MATCHES_ALL))
+                .findAll(xml).take(5).mapNotNull { match ->
+                    val item = match.groupValues[1]
+                    val rawTitle = Regex("<title>(?:<!\\[CDATA\\[(.*?)]]>|(.*?))</title>", setOf(RegexOption.DOT_MATCHES_ALL))
+                        .find(item)?.let { it.groupValues[1].ifBlank { it.groupValues[2] } } ?: return@mapNotNull null
+                    rawTitle.replace("&amp;", "&").replace("&quot;", "\\"")
+                        .replace("&#39;", "'").replace("&apos;", "'")
+                        .replace("&lt;", "<").replace("&gt;", ">").trim()
+                        .takeIf { it.isNotBlank() }
+                }.toList()
+            if (items.isEmpty()) "Google News headlines unavailable" else
+                "GLOBAL FEED  /  GOOGLE NEWS\\n" + items.mapIndexed { i, title -> "${i + 1}   $title" }.joinToString("\\n")
+        } catch (_: Exception) { "Google News unavailable — check internet" }
     }
 }
