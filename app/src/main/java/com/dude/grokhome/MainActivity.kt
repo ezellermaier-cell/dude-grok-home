@@ -45,6 +45,9 @@ class MainActivity : Activity() {
     private lateinit var newsRow: LinearLayout
     private lateinit var ask: EditText
     private lateinit var tts: TextToSpeech
+    private lateinit var mainScroll: ScrollView
+    private lateinit var dashboardPage: LinearLayout
+    private lateinit var settingsPage: LinearLayout
     private var ttsReady = false
     private var receiverRegistered = false
     private var weatherText = ""
@@ -120,7 +123,7 @@ class MainActivity : Activity() {
     private fun buildUi() {
         // Responsive Echo Show-style dashboard. Wide displays use a three-column
         // command center; narrow displays reflow into a vertically scrolling layout.
-        val wide = resources.configuration.screenWidthDp >= 800 &&
+        val wide = resources.configuration.screenWidthDp >= 600 &&
             resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -147,11 +150,13 @@ class MainActivity : Activity() {
         header.addView(brand, LinearLayout.LayoutParams(0, 54, 1f))
         status = label("● READY", 10f, mint, true)
         header.addView(status)
-        header.addView(button("⚙") { settings() }, LinearLayout.LayoutParams(48, 42).apply { leftMargin = 10 })
+        header.addView(button("⚙") { showSettingsTab() }, LinearLayout.LayoutParams(48, 42).apply { leftMargin = 10 })
         root.addView(header)
 
         val scroll = ScrollView(this).apply { isFillViewport = true; isVerticalScrollBarEnabled = false }
+        mainScroll = scroll
         val page = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        dashboardPage = page
         val top = LinearLayout(this).apply {
             orientation = if (wide) LinearLayout.HORIZONTAL else LinearLayout.VERTICAL
             gravity = Gravity.CENTER_VERTICAL
@@ -248,7 +253,65 @@ class MainActivity : Activity() {
         })
         scroll.addView(page)
         root.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
+        settingsPage = buildSettingsPage()
+        val nav = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; setPadding(0, 8, 0, 0) }
+        nav.addView(button("⌂  HOME") { showDashboardTab() }, LinearLayout.LayoutParams(0, 48, 1f).apply { rightMargin = 6 })
+        nav.addView(button("⚙  SETTINGS") { showSettingsTab() }, LinearLayout.LayoutParams(0, 48, 1f).apply { leftMargin = 6 })
+        root.addView(nav)
         setContentView(root)
+        scroll.post { page.minimumHeight = scroll.height }
+    }
+
+    private fun showDashboardTab() {
+        mainScroll.removeAllViews()
+        mainScroll.addView(dashboardPage)
+        mainScroll.post { dashboardPage.minimumHeight = mainScroll.height }
+    }
+
+    private fun showSettingsTab() {
+        mainScroll.removeAllViews()
+        mainScroll.addView(settingsPage)
+        mainScroll.post { settingsPage.minimumHeight = mainScroll.height }
+    }
+
+    private fun buildSettingsPage(): LinearLayout {
+        val page = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(18, 18, 18, 22) }
+        fun section(title: String) { page.addView(txt(title, 13f, mint, true).apply { setPadding(0, 16, 0, 8) }) }
+        fun field(title: String, value: String = "", type: Int = InputType.TYPE_CLASS_TEXT): EditText {
+            page.addView(txt(title, 11f, cyan, true))
+            return EditText(this).apply {
+                setText(value); inputType = type; setSingleLine(true); setTextColor(Color.WHITE); setHintTextColor(muted)
+                background = shape(Color.rgb(3, 11, 27), Color.rgb(47, 118, 166), 12f); setPadding(12, 8, 12, 8)
+                page.addView(this, LinearLayout.LayoutParams(-1, 48).apply { bottomMargin = 10 })
+            }
+        }
+        page.addView(txt("DUDE SETTINGS", 24f, Color.WHITE, true))
+        page.addView(txt("Tune your dashboard, voice, weather and connected home.", 12f, muted))
+        section("WEATHER")
+        val city = field("City or ZIP code", prefs.getString("weather_city", "").orEmpty())
+        section("SMART HOME  •  HOME ASSISTANT")
+        val url = field("Home Assistant URL", prefs.getString("ha_url", "").orEmpty())
+        val token = field("Long-lived access token (leave blank to keep current)", "", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD)
+        val light = field("Main light entity ID", prefs.getString("ha_light_entity", "").orEmpty())
+        val plug = field("Smart plug entity ID", prefs.getString("ha_switch_entity", "").orEmpty())
+        val vacuum = field("Vacuum entity ID", prefs.getString("ha_vacuum_entity", "").orEmpty())
+        section("VOICE & ASSISTANT")
+        page.addView(button("CHOOSE DUDE'S VOICE") { chooseVoice() }, LinearLayout.LayoutParams(-1, 48).apply { bottomMargin = 8 })
+        page.addView(button("START LISTENING FOR HEY DUDE") { startVoice(); speak("I'm back. What's up?") }, LinearLayout.LayoutParams(-1, 48).apply { bottomMargin = 8 })
+        page.addView(txt("Voice quality depends on English voices installed on this tablet. Wake-word listening uses Android speech recognition.", 10f, muted))
+        section("APP & DATA")
+        page.addView(button("REFRESH WEATHER & NEWS") { loadDashboard(); speak("Refreshing the dashboard. One sec.") }, LinearLayout.LayoutParams(-1, 48).apply { bottomMargin = 8 })
+        page.addView(txt("Weather and headlines use free online sources. Smart-home control requires a Home Assistant server and a valid token. No paid AI API is configured.", 10f, muted))
+        page.addView(button("SAVE SETTINGS") {
+            prefs.edit().putString("weather_city", city.text.toString().trim())
+                .putString("ha_url", url.text.toString().trim())
+                .putString("ha_light_entity", light.text.toString().trim())
+                .putString("ha_switch_entity", plug.text.toString().trim())
+                .putString("ha_vacuum_entity", vacuum.text.toString().trim()).apply()
+            if (token.text.isNotBlank()) saveSecret("ha_token", token.text.toString().trim())
+            loadDashboard(); showDashboardTab(); speak("Settings saved. All systems looking good.")
+        }, LinearLayout.LayoutParams(-1, 52).apply { topMargin = 18 })
+        return page
     }
 
     private fun tick() {
