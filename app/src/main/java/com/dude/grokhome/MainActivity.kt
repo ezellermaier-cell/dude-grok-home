@@ -23,7 +23,6 @@ import android.os.Handler
 import android.os.Looper
 import java.text.SimpleDateFormat
 import java.util.Date
-import android.speech.RecognizerIntent
 import android.speech.tts.TextToSpeech
 import android.view.Gravity
 import android.view.View
@@ -31,8 +30,6 @@ import android.view.WindowManager
 import android.widget.*
 import org.json.JSONArray
 import org.json.JSONObject
-import java.net.HttpURLConnection
-import java.net.URL
 import java.util.Locale
 import java.util.concurrent.Executors
 
@@ -49,7 +46,6 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
     private val bg = Color.rgb(10, 18, 32)
     private val panel = Color.rgb(23, 37, 58)
     private val blue = Color.rgb(87, 190, 255)
-    private val requestVoice = 501
     private val requestMic = 502
     private var wakeReceiverRegistered = false
     private val wakeReceiver = object : BroadcastReceiver() {
@@ -296,31 +292,6 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
             } catch (e: Exception) { runOnUiThread { say("I could not discover devices. Check the Home Assistant address, token and Wi-Fi. ${e.message ?: ""}") } }
         }
     }
-    private fun startListening() {
-        if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
-            requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), requestMic); return
-        }
-        try {
-            val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-                putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-                putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault())
-                putExtra(RecognizerIntent.EXTRA_PROMPT, "Talk to Dude")
-            }
-            startActivityForResult(intent, requestVoice)
-        } catch (_: Exception) {
-            say("I can't find a speech recognition service on this tablet. Check Google voice services.")
-        }
-    }
-
-    @Deprecated("Deprecated Android callback retained for compatibility")
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode == requestVoice && resultCode == RESULT_OK) {
-            val spoken = data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull().orEmpty()
-            if (spoken.isNotBlank()) handleText(spoken)
-        }
-    }
-
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, results: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, results)
         if (requestCode == requestMic && results.firstOrNull() == PackageManager.PERMISSION_GRANTED) startWakeWordService()
@@ -424,8 +395,6 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
         } catch (_: Exception) { "" }
     }
 
-    private fun saveApiKey(value: String) = saveSecret("xai", value)
-    private fun loadApiKey(): String = loadSecret("xai")
     override fun onInit(statusCode: Int) {
         if (statusCode == TextToSpeech.SUCCESS) tts.language = Locale.US
     }
