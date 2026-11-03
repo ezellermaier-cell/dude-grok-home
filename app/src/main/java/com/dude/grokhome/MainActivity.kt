@@ -108,102 +108,115 @@ class MainActivity : Activity() {
     }
 
     private fun buildUi() {
+        // DUDE // NEON COMMAND DECK — redesigned as a futuristic control surface.
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(20, 10, 20, 10)
-            background = grad(navy, Color.rgb(11, 18, 47), Color.TRANSPARENT, 0f)
+            setPadding(22, 14, 22, 14)
+            background = GradientDrawable(GradientDrawable.Orientation.TL_BR,
+                intArrayOf(Color.rgb(2, 7, 22), Color.rgb(5, 22, 46), Color.rgb(10, 9, 34)))
         }
+        fun label(text: String, size: Float, color: Int = Color.WHITE, bold: Boolean = false) =
+            txt(text, size, color, bold)
         val header = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
-        val logo = txt("D U D E", 25f, cyan, true)
-        header.addView(logo, LinearLayout.LayoutParams(0, 48, 1f))
-        status = txt("● ONLINE", 11f, mint, true)
+        val brand = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        brand.addView(label("DUDE", 29f, cyan, true).apply { letterSpacing = 0.22f; setShadowLayer(18f, 0f, 0f, cyan) })
+        brand.addView(label("PERSONAL HOME INTELLIGENCE", 8f, muted, true).apply { letterSpacing = 0.18f })
+        header.addView(brand, LinearLayout.LayoutParams(0, 54, 1f))
+        status = label("● SYSTEM ONLINE", 10f, mint, true)
         header.addView(status)
-        header.addView(button("⚙") { settings() }, LinearLayout.LayoutParams(50, 42).apply { leftMargin = 10 })
+        header.addView(button("⚙") { settings() }, LinearLayout.LayoutParams(48, 42).apply { leftMargin = 12 })
         root.addView(header)
 
         val scroll = ScrollView(this).apply { isFillViewport = true; isVerticalScrollBarEnabled = false }
         val page = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-
-        val top = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
-        val info = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        val timeCard = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_VERTICAL; setPadding(20, 12, 12, 12)
-            background = grad(Color.rgb(16, 55, 98), Color.rgb(9, 31, 65), Color.rgb(39, 126, 185))
+        val hero = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
+            background = grad(Color.rgb(9, 34, 68), Color.rgb(7, 15, 39), Color.rgb(42, 164, 226), 28f)
+            setPadding(18, 14, 18, 14)
         }
-        clock = txt("--:--", 54f, Color.WHITE, true).apply { setShadowLayer(20f, 0f, 0f, cyan) }
-        date = txt("LOADING DATE", 13f, muted, true)
-        timeCard.addView(clock); timeCard.addView(date)
-        info.addView(timeCard, LinearLayout.LayoutParams(-1, 124).apply { bottomMargin = 10 })
+        val left = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        left.addView(label("GOOD VIBRATIONS.", 10f, mint, true).apply { letterSpacing = 0.2f })
+        clock = label("--:--", 58f, Color.WHITE, true).apply { setShadowLayer(22f, 0f, 0f, cyan) }
+        date = label("LOADING", 12f, muted, true)
+        left.addView(clock); left.addView(date)
+        left.addView(label("LOCAL TIME • LIVE", 8f, cyan, true).apply { setPadding(0, 8, 0, 0) })
+        hero.addView(left, LinearLayout.LayoutParams(0, -1, 1.1f))
+        val core = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER
+            background = grad(Color.rgb(12, 53, 91), Color.rgb(10, 18, 48), Color.rgb(77, 211, 255), 100f)
+            setPadding(12, 16, 12, 16)
+        }
+        orb = label("◉", 76f, cyan, true).apply { gravity = Gravity.CENTER; setShadowLayer(30f, 0f, 0f, cyan) }
+        core.addView(orb, LinearLayout.LayoutParams(-1, 88))
+        core.addView(label("DUDE CORE", 10f, Color.WHITE, true).apply { gravity = Gravity.CENTER; letterSpacing = 0.12f })
+        core.addView(label("CHILL MODE: ON", 8f, mint, true).apply { gravity = Gravity.CENTER; setPadding(0, 5, 0, 10) })
+        core.addView(button("TALK TO ME") { startVoice(); speak("Yo. I'm listening. What's up?") }, LinearLayout.LayoutParams(-1, 40))
+        hero.addView(core, LinearLayout.LayoutParams(0, 190, 0.9f).apply { leftMargin = 12 })
+        page.addView(hero, LinearLayout.LayoutParams(-1, 220).apply { bottomMargin = 12 })
+
         val wx = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL; setPadding(16, 12, 16, 12)
-            background = grad(Color.rgb(8, 64, 81), Color.rgb(9, 38, 65), mint)
+            background = grad(Color.rgb(5, 54, 71), Color.rgb(7, 29, 52), Color.rgb(55, 211, 190), 20f)
         }
-        weatherTitle = txt("WEATHER / SET CITY", 11f, mint, true)
-        weatherBody = txt("Your local forecast will appear here.", 17f, Color.WHITE, true)
+        wx.addView(label("◈  ATMOSPHERE / WEATHER", 10f, mint, true))
+        weatherTitle = label("SET YOUR CITY", 17f, Color.WHITE, true)
+        weatherBody = label("Your forecast will show here.", 12f, muted)
         wx.addView(weatherTitle); wx.addView(weatherBody)
-        info.addView(wx, LinearLayout.LayoutParams(-1, 105))
-        top.addView(info, LinearLayout.LayoutParams(0, -1, 2.7f).apply { rightMargin = 12 })
-
-        val assistant = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER; setPadding(10, 8, 10, 8)
-            background = grad(Color.rgb(19, 44, 88), Color.rgb(10, 22, 52), Color.rgb(64, 127, 207))
-        }
-        orb = txt("◉", 72f, cyan, true).apply { gravity = Gravity.CENTER; setShadowLayer(28f, 0f, 0f, cyan) }
-        assistant.addView(orb, LinearLayout.LayoutParams(-1, 100))
-        assistant.addView(txt("HEY, I'M DUDE", 17f, Color.WHITE, true).apply { gravity = Gravity.CENTER })
-        assistant.addView(txt("YOUR HOME'S SMART-MOUTH", 9f, mint, true).apply { gravity = Gravity.CENTER; setPadding(0, 5, 0, 10) })
-        assistant.addView(button("TAP TO TALK") { startVoice(); speak("I'm listening. Try to make it interesting.") }, LinearLayout.LayoutParams(-1, 42))
-        top.addView(assistant, LinearLayout.LayoutParams(0, -1, 2.0f))
-        page.addView(top, LinearLayout.LayoutParams(-1, 238))
+        page.addView(wx, LinearLayout.LayoutParams(-1, 88).apply { bottomMargin = 12 })
 
         val chat = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL; setPadding(16, 10, 16, 12)
-            background = shape(panel, Color.rgb(53, 103, 158), 20f)
+            orientation = LinearLayout.VERTICAL; setPadding(16, 12, 16, 14)
+            background = shape(Color.rgb(7, 19, 42), Color.rgb(41, 122, 181), 20f)
         }
-        val chatHeader = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
-        chatHeader.addView(txt("DUDE / CONVERSATION", 11f, cyan, true), LinearLayout.LayoutParams(0, 27, 1f))
-        chatHeader.addView(txt("VOICE + TEXT", 9f, muted, true))
-        chat.addView(chatHeader)
-        response = txt("Hey! I'm DUDE. Ask me about the weather, news, time, or your smart home. I'll try not to be a show-off.", 15f)
+        val chatHead = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+        chatHead.addView(label("◉  DUDE CHANNEL", 11f, cyan, true), LinearLayout.LayoutParams(0, 28, 1f))
+        chatHead.addView(label("VOICE / TEXT", 8f, muted, true))
+        chat.addView(chatHead)
+        response = label("Yo. I'm DUDE. Weather, headlines, time, and your smart home. No awkward small talk required.", 14f)
         response.maxLines = 2
-        chat.addView(response, LinearLayout.LayoutParams(-1, 48))
+        chat.addView(response, LinearLayout.LayoutParams(-1, 46))
         val askRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
         ask = EditText(this).apply {
-            hint = "Ask DUDE…"; setHintTextColor(muted); setTextColor(Color.WHITE); textSize = 14f
+            hint = "What's on your mind?"; setHintTextColor(muted); setTextColor(Color.WHITE); textSize = 14f
             setSingleLine(true); inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
-            background = shape(Color.rgb(5, 17, 35), Color.rgb(43, 93, 140), 14f); setPadding(12, 0, 12, 0)
+            background = shape(Color.rgb(3, 11, 27), Color.rgb(47, 118, 166), 14f); setPadding(13, 0, 13, 0)
         }
         askRow.addView(ask, LinearLayout.LayoutParams(0, 44, 1f).apply { rightMargin = 8 })
-        askRow.addView(button("SEND") { val q = ask.text.toString().trim(); ask.setText(""); if (q.isNotBlank()) handle(q) }, LinearLayout.LayoutParams(82, 44))
+        askRow.addView(button("SEND  ↗") { val q = ask.text.toString().trim(); ask.setText(""); if (q.isNotBlank()) handle(q) }, LinearLayout.LayoutParams(92, 44))
         chat.addView(askRow)
-        page.addView(chat, LinearLayout.LayoutParams(-1, 130).apply { topMargin = 11; bottomMargin = 11 })
+        page.addView(chat, LinearLayout.LayoutParams(-1, 122).apply { bottomMargin = 12 })
 
-        val newsCard = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL; setPadding(14, 10, 14, 10)
-            background = shape(panel, Color.rgb(43, 86, 135), 20f)
+        val news = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL; setPadding(14, 11, 14, 12)
+            background = shape(Color.rgb(8, 19, 43), Color.rgb(47, 83, 145), 20f)
         }
-        val newsHeader = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
-        newsHeader.addView(txt("THE WORLD, BRIEFLY", 14f, Color.WHITE, true), LinearLayout.LayoutParams(0, 28, 1f))
-        newsHeader.addView(txt("LIVE HEADLINES", 9f, mint, true))
-        newsCard.addView(newsHeader)
+        val newsHead = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+        newsHead.addView(label("▤  SIGNAL / NEWS", 13f, Color.WHITE, true), LinearLayout.LayoutParams(0, 28, 1f))
+        newsHead.addView(label("WORLD FEED", 8f, mint, true))
+        news.addView(newsHead)
         newsRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        newsCard.addView(newsRow, LinearLayout.LayoutParams(-1, 125))
-        page.addView(newsCard, LinearLayout.LayoutParams(-1, 164).apply { bottomMargin = 10 })
+        news.addView(newsRow, LinearLayout.LayoutParams(-1, 132))
+        page.addView(news, LinearLayout.LayoutParams(-1, 168).apply { bottomMargin = 12 })
 
-        val deviceHeader = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
-        deviceHeader.addView(txt("YOUR HOME", 17f, Color.WHITE, true), LinearLayout.LayoutParams(0, 38, 1f))
-        deviceHeader.addView(button("DISCOVER DEVICES  ›") { discoverDevices() }, LinearLayout.LayoutParams(150, 38))
-        page.addView(deviceHeader)
-        val tiles = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        listOf("💡\nLIGHTS", "🌡\nSENSI", "🧺\nLG WASHER", "🤖\nSHARK").forEach { name ->
-            tiles.addView(txt(name, 12f, Color.WHITE, true).apply {
-                gravity = Gravity.CENTER; background = shape(Color.rgb(13, 43, 69), Color.rgb(38, 92, 132), 16f)
-                setPadding(4, 8, 4, 8); setOnClickListener { discoverDevices() }
-            }, LinearLayout.LayoutParams(0, 70, 1f).apply { setMargins(4, 3, 4, 3) })
+        val home = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL; setPadding(14, 12, 14, 12)
+            background = shape(Color.rgb(7, 21, 43), Color.rgb(38, 111, 157), 20f)
         }
-        page.addView(tiles)
-        page.addView(txt("VOICE RECOGNITION USES THE SPEECH SERVICE INSTALLED ON YOUR TABLET.", 9f, muted, true).apply {
-            gravity = Gravity.CENTER; setPadding(0, 8, 0, 2)
+        val homeHead = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+        homeHead.addView(label("⌂  HOME NETWORK", 13f, Color.WHITE, true), LinearLayout.LayoutParams(0, 30, 1f))
+        homeHead.addView(button("SCAN DEVICES") { discoverDevices() }, LinearLayout.LayoutParams(130, 38))
+        home.addView(homeHead)
+        val tiles = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        listOf("◉\nLIGHTING", "◈\nCLIMATE", "▤\nLAUNDRY", "◎\nCLEANING").forEachIndexed { index, name ->
+            tiles.addView(label(name, 10f, if (index == 0) cyan else muted, true).apply {
+                gravity = Gravity.CENTER; background = grad(Color.rgb(12, 40, 70), Color.rgb(5, 19, 39), Color.rgb(37, 91, 137), 14f)
+                setPadding(3, 8, 3, 8); setOnClickListener { discoverDevices() }
+            }, LinearLayout.LayoutParams(0, 65, 1f).apply { setMargins(3, 3, 3, 3) })
+        }
+        home.addView(tiles)
+        page.addView(home)
+        page.addView(label("DUDE 2.0  •  BUILT FOR YOUR HOME", 8f, muted, true).apply {
+            gravity = Gravity.CENTER; setPadding(0, 10, 0, 4); letterSpacing = 0.12f
         })
         scroll.addView(page)
         root.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
