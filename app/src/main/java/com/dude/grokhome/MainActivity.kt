@@ -56,7 +56,7 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
     private val wakeReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             val phrase = intent?.getStringExtra(WakeWordService.EXTRA_COMMAND).orEmpty()
-            if (phrase == WakeWordService.WAKE_ONLY) say("I'm listening. What's up?") else if (phrase.isNotBlank()) handleText(phrase)
+            if (phrase == WakeWordService.WAKE_ONLY) say("I'm listening. What's up?") else if (phrase.startsWith("DUDE_ERROR:")) say(phrase.removePrefix("DUDE_ERROR:")) else if (phrase.isNotBlank()) handleText(phrase)
         }
     }
 
@@ -166,7 +166,7 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
         val nav = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
         nav.addView(makeButton("⌂  HOME") { refreshDashboard() }, LinearLayout.LayoutParams(0, 48, 1f).apply { setMargins(3, 3, 3, 3) })
         nav.addView(makeButton("▦  DEVICES") { discoverDevices() }, LinearLayout.LayoutParams(0, 48, 1f).apply { setMargins(3, 3, 3, 3) })
-        nav.addView(makeButton("◉  ASSISTANT") { launchGoogleAssistant() }, LinearLayout.LayoutParams(0, 48, 1f).apply { setMargins(3, 3, 3, 3) })
+        nav.addView(makeButton("◉  DUDE VOICE") { startWakeWordService(); say("I am right here. Say Hey Dude, then ask me a supported command.") }, LinearLayout.LayoutParams(0, 48, 1f).apply { setMargins(3, 3, 3, 3) })
         nav.addView(makeButton("⚙  SETTINGS") { settingsDialog() }, LinearLayout.LayoutParams(0, 48, 1f).apply { setMargins(3, 3, 3, 3) })
         root.addView(nav)
         setContentView(root)
@@ -259,11 +259,7 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
     }
 
     private fun launchGoogleAssistant() {
-        try {
-            startActivity(Intent(Intent.ACTION_ASSIST))
-        } catch (_: Exception) {
-            say("The Google assistant app is not available as the default assistant on this tablet. Set Google or Gemini as your default digital assistant in Android settings.")
-        }
+        say("DUDE keeps everything on this screen. Say Hey Dude and ask me a smart-home or dashboard command.")
     }
 
     private fun makeButton(label: String, action: () -> Unit) = Button(this).apply {
