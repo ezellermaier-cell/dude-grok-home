@@ -17,7 +17,7 @@ object DashboardData {
             val now = JSONObject(text).getJSONObject("current")
             val code = now.optInt("weather_code")
             val sky = when (code) { 0 -> "Clear"; 1, 2 -> "Partly cloudy"; 3 -> "Cloudy"; 45, 48 -> "Fog"; 51, 53, 55 -> "Drizzle"; 61, 63, 65, 80, 81, 82 -> "Rain"; 71, 73, 75, 77, 85, 86 -> "Snow"; 95, 96, 99 -> "Thunderstorms"; else -> "Current conditions" }
-            "${place.optString("name", city)}\\n${now.optDouble("temperature_2m").toInt()}°F • $sky\\nFeels ${now.optDouble("apparent_temperature").toInt()}° • Humidity ${now.optInt("relative_humidity_2m")}%"
+            "${place.optString("name", city)}\n${now.optDouble("temperature_2m").toInt()}°F • $sky\nFeels ${now.optDouble("apparent_temperature").toInt()}° • Humidity ${now.optInt("relative_humidity_2m")}%"
         } catch (_: Exception) { "Weather unavailable — check internet" }
     }
 
@@ -26,8 +26,8 @@ object DashboardData {
             val c = URL("https://feeds.bbci.co.uk/news/rss.xml").openConnection() as HttpURLConnection
             c.connectTimeout = 10000; c.readTimeout = 12000
             val xml = c.inputStream.bufferedReader().use { it.readText() }; c.disconnect()
-            val titles = Regex("<item>.*?<title><!\\\\[CDATA\\\\[(.*?)]]></title>", setOf(RegexOption.DOT_MATCHES_ALL)).findAll(xml).take(4).map { it.groupValues[1].replace("&amp;", "&").trim() }.toList()
-            if (titles.isEmpty()) "No headlines available" else titles.mapIndexed { i, title -> "${i + 1}. $title" }.joinToString("\\n")
+            val titles = Regex("<item>.*?<title><!\\[CDATA\\[(.*?)]]></title>", setOf(RegexOption.DOT_MATCHES_ALL)).findAll(xml).take(4).map { it.groupValues[1].replace("&amp;", "&").trim() }.toList()
+            if (titles.isEmpty()) "No headlines available" else titles.mapIndexed { i, title -> "${i + 1}. $title" }.joinToString("\n")
         } catch (_: Exception) { "Headlines unavailable — check internet" }
     }
 }
