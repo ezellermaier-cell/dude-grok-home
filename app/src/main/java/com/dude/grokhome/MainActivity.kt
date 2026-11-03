@@ -95,8 +95,10 @@ class MainActivity : Activity() {
         val filter = IntentFilter(WakeWordService.ACTION_WAKE_COMMAND)
         if (Build.VERSION.SDK_INT >= 33) registerReceiver(voiceReceiver, filter, Context.RECEIVER_NOT_EXPORTED) else registerReceiver(voiceReceiver, filter)
         receiverRegistered = true
-        if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) startVoice()
-        else requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), 502)
+        if (prefs.getBoolean("voice_enabled", true)) {
+            if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) startVoice()
+            else requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), 502)
+        }
         main.post(clockRunnable)
     }
 
@@ -158,6 +160,9 @@ class MainActivity : Activity() {
         @android.webkit.JavascriptInterface fun talk() { runOnUiThread { startVoice(); speak("I'm listening. What's up?") } }
         @android.webkit.JavascriptInterface fun navigate(section: String) { runOnUiThread { showSectionTab(section.uppercase(Locale.US)) } }
         @android.webkit.JavascriptInterface fun discover() { runOnUiThread { discoverDevices() } }
+        @android.webkit.JavascriptInterface fun openArticle(link: String, title: String, source: String) {
+            runOnUiThread { openNewsArticle(DashboardData.NewsItem(title, "", source, link)) }
+        }
     }
 
     private fun buildUi() {
@@ -1125,7 +1130,7 @@ class MainActivity : Activity() {
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (requestCode == 502 && grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED) startVoice()
+        if (requestCode == 502 && grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED && prefs.getBoolean("voice_enabled", true)) startVoice()
         else if (requestCode == 502) speak("I need microphone permission to listen for Hey Dude. I'm not being nosy. Much.")
     }
 
