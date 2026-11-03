@@ -41,9 +41,31 @@ object DashboardData {
                 val image = Regex("<(?:media:content|media:thumbnail|enclosure)[^>]*(?:url|href)=['\\\"]([^'\\\"]+)['\\\"][^>]*/?>")
                     .find(item)?.groupValues?.get(1).orEmpty()
                 val source = Regex("<source[^>]*>(.*?)</source>").find(item)?.groupValues?.get(1).orEmpty()
-                NewsItem(title, image, source)
+                val link = Regex("<link>(.*?)</link>").find(item)?.groupValues?.get(1)?.trim().orEmpty()
+                val preview = if (image.isNotBlank()) image else articlePreviewImage(link)
+                NewsItem(title, preview, source)
             }.toList()
         } catch (_: Exception) { emptyList() }
+    }
+
+    
+    private fun articlePreviewImage(link: String): String {
+        if (link.isBlank()) return ""
+        return try {
+            val connection = URL(link).openConnection() as HttpURLConnection
+            connection.connectTimeout = 4500
+            connection.readTimeout = 5000
+            connection.instanceFollowRedirects = true
+            connection.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 Chrome/120 Safari/537.36")
+            val html = connection.inputStream.bufferedReader().use { it.readText().take(400000) }
+            connection.disconnect()
+            val patterns = listOf(
+                Regex("<meta[^>]+property=['\\\"]og:image['\\\"][^>]+content=['\\\"]([^'\\\"]+)['\\\"]", RegexOption.IGNORE_CASE),
+                Regex("<meta[^>]+content=['\\\"]([^'\\\"]+)['\\\"][^>]+property=['\\\"]og:image['\\\"]", RegexOption.IGNORE_CASE),
+                Regex("<meta[^>]+name=['\\\"]twitter:image['\\\"][^>]+content=['\\\"]([^'\\\"]+)['\\\"]", RegexOption.IGNORE_CASE)
+            )
+            patterns.firstNotNullOfOrNull { it.find(html)?.groupValues?.get(1) }.orEmpty()
+        } catch (_: Exception) { "" }
     }
 
     fun headlines(): String {
