@@ -578,56 +578,117 @@ class MainActivity : Activity() {
     private fun showSettingsTab() { showSectionTab("SETTINGS") }
 
     private fun buildSettingsPage(): LinearLayout {
-        val page = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(18, 18, 18, 22) }
-        fun section(title: String) { page.addView(txt(title, 13f, mint, true).apply { setPadding(0, 16, 0, 8) }) }
-        fun field(title: String, value: String = "", type: Int = InputType.TYPE_CLASS_TEXT): EditText {
-            page.addView(txt(title, 11f, cyan, true))
+        val page = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(20, 22, 20, 30)
+            setBackgroundColor(Color.rgb(5, 12, 27))
+        }
+        fun label(text: String, size: Float = 11f, color: Int = muted, bold: Boolean = false) =
+            txt(text, size, color, bold)
+        fun group(title: String, description: String): LinearLayout {
+            val box = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding(18, 17, 18, 18)
+                background = grad(Color.rgb(17, 34, 59), Color.rgb(9, 20, 39), Color.rgb(39, 91, 128), 20f)
+                elevation = 3f
+            }
+            box.addView(label(title, 14f, cyan, true))
+            box.addView(label(description, 10f, muted).apply { setPadding(0, 4, 0, 14) })
+            page.addView(box, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = 13 })
+            return box
+        }
+        fun field(box: LinearLayout, title: String, hint: String, value: String = "",
+                  type: Int = InputType.TYPE_CLASS_TEXT): EditText {
+            box.addView(label(title, 11f, Color.WHITE, true).apply { setPadding(0, 5, 0, 5) })
             return EditText(this).apply {
-                setText(value); inputType = type; setSingleLine(true); setTextColor(Color.WHITE); setHintTextColor(muted)
-                background = shape(Color.rgb(3, 11, 27), Color.rgb(47, 118, 166), 12f); setPadding(12, 8, 12, 8)
-                page.addView(this, LinearLayout.LayoutParams(-1, 48).apply { bottomMargin = 10 })
+                setText(value)
+                this.hint = hint
+                inputType = type
+                setSingleLine(true)
+                textSize = 13f
+                setTextColor(Color.WHITE)
+                setHintTextColor(Color.rgb(112, 139, 168))
+                background = shape(Color.rgb(5, 15, 31), Color.rgb(48, 105, 145), 12f)
+                setPadding(13, 8, 13, 8)
+                box.addView(this, LinearLayout.LayoutParams(-1, 48).apply { bottomMargin = 8 })
             }
         }
-        page.addView(txt("DUDE SETTINGS", 24f, Color.WHITE, true))
-        page.addView(txt("Tune your dashboard, voice, weather and connected home.", 12f, muted))
-        section("WEATHER")
-        val city = field("City or ZIP code", prefs.getString("weather_city", "").orEmpty())
-        section("SMART HOME  •  HOME ASSISTANT")
-        val url = field("Home Assistant URL", prefs.getString("ha_url", "").orEmpty())
-        val token = field("Long-lived access token (leave blank to keep current)", "", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD)
-        val light = field("Main light entity ID", prefs.getString("ha_light_entity", "").orEmpty())
-        val plug = field("Smart plug entity ID", prefs.getString("ha_switch_entity", "").orEmpty())
-        val vacuum = field("Vacuum entity ID", prefs.getString("ha_vacuum_entity", "").orEmpty())
-        section("DASHBOARD & TABS")
-        page.addView(button("MOVE TABS / CUSTOMIZE LAYOUT") { showLayoutEditor(page) }, LinearLayout.LayoutParams(-1, 48).apply { bottomMargin = 8 })
-        page.addView(txt("Reorder dashboard sections, hide sections you do not use, and save your layout. Your choices stay on this tablet.", 10f, muted))
-        section("AI BRAIN • GEMINI")
-        val geminiKey = field("Gemini API key (leave blank to keep current)", "", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD)
-        val geminiStatus = if (loadSecret("gemini_api_key").isBlank()) "AI is not connected yet. Add a key to enable open-ended conversations." else "Gemini is connected. DUDE can answer general questions."
-        page.addView(txt(geminiStatus, 10f, muted))
-        page.addView(button("CLEAR GEMINI KEY") {
+        fun helper(box: LinearLayout, text: String) {
+            box.addView(label(text, 10f, muted).apply { setPadding(0, 3, 0, 8) })
+        }
+        fun action(box: LinearLayout, title: String, subtitle: String? = null, run: () -> Unit) {
+            box.addView(button(title, run), LinearLayout.LayoutParams(-1, 46).apply { topMargin = 7 })
+            if (subtitle != null) helper(box, subtitle)
+        }
+
+        page.addView(label("PERSONALIZE YOUR DUDE", 10f, mint, true))
+        page.addView(label("Settings", 30f, Color.WHITE, true).apply { setPadding(0, 3, 0, 4) })
+        page.addView(label("Everything is saved on this tablet. Choose a section below and follow the short hints.", 12f, muted)
+            .apply { setPadding(0, 0, 0, 18) })
+
+        val weather = group("☀  WEATHER & LOCATION", "Choose the city DUDE uses for your home-screen forecast.")
+        val city = field(weather, "Your city or ZIP code", "Example: Teaneck, NJ",
+            prefs.getString("weather_city", "").orEmpty())
+        helper(weather, "Use a city and state for the most accurate match.")
+
+        val home = group("⌂  SMART HOME CONNECTION", "Connect Home Assistant once to control supported lights, plugs, climate and other devices.")
+        val url = field(home, "Home Assistant address", "http://homeassistant.local:8123",
+            prefs.getString("ha_url", "").orEmpty())
+        val token = field(home, "Access token", "Paste long-lived access token (hidden)",
+            "", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD)
+        val light = field(home, "Main light entity (optional)", "light.living_room",
+            prefs.getString("ha_light_entity", "").orEmpty())
+        val plug = field(home, "Smart plug entity (optional)", "switch.smart_plug",
+            prefs.getString("ha_switch_entity", "").orEmpty())
+        val vacuum = field(home, "Vacuum entity (optional)", "vacuum.robot",
+            prefs.getString("ha_vacuum_entity", "").orEmpty())
+        action(home, "DISCOVER MY DEVICES", "Find supported entities automatically after connecting.") { discoverDevices() }
+
+        val ai = group("✦  AI BRAIN", "Add your personal Gemini API key to let DUDE answer general questions. Keep this key private.")
+        val geminiKey = field(ai, "Gemini API key", "Paste key here (leave blank to keep current)", "",
+            InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD)
+        val connected = loadSecret("gemini_api_key").isNotBlank()
+        helper(ai, if (connected) "Status: Gemini key is saved on this tablet." else "Status: Not connected yet. Create a key in Google AI Studio.")
+        action(ai, "CLEAR SAVED GEMINI KEY", "The key is encrypted locally using Android Keystore.") {
             prefs.edit().remove("gemini_api_key_iv").remove("gemini_api_key_cipher").apply()
             speak("Gemini key cleared from this tablet.")
             showSectionTab("SETTINGS")
-        }, LinearLayout.LayoutParams(-1, 42).apply { bottomMargin = 8 })
-        page.addView(txt("The key is encrypted with Android Keystore while stored on this tablet. A key used by a mobile app can still be extracted by a determined attacker; use this only for your personal device, not a public release. Gemini free-tier limits apply, and Google may use free-tier submitted content to improve its products.", 10f, muted))
-        section("VOICE & ASSISTANT")
-        page.addView(button("CHOOSE DUDE'S VOICE") { chooseVoice() }, LinearLayout.LayoutParams(-1, 48).apply { bottomMargin = 8 })
-        page.addView(button("START LISTENING FOR HEY DUDE") { startVoice(); speak("I'm back. What's up?") }, LinearLayout.LayoutParams(-1, 48).apply { bottomMargin = 8 })
-        page.addView(txt("Voice quality depends on English voices installed on this tablet. Wake-word listening uses Android speech recognition.", 10f, muted))
-        section("APP & DATA")
-        page.addView(button("REFRESH WEATHER & NEWS") { loadDashboard(); speak("Refreshing the dashboard. One sec.") }, LinearLayout.LayoutParams(-1, 48).apply { bottomMargin = 8 })
-        page.addView(txt("Weather and headlines use free online sources. Smart-home control requires a Home Assistant server and a valid token.", 10f, muted))
-        page.addView(button("SAVE SETTINGS") {
+        }
+
+        val voice = group("◉  VOICE & LISTENING", "Choose how DUDE sounds and start hands-free listening.")
+        action(voice, "CHOOSE DUDE'S VOICE", "Available voices depend on the voices installed on Android.") { chooseVoice() }
+        action(voice, "START LISTENING FOR HEY DUDE", "Microphone permission is required. Android speech recognition powers wake listening.") {
+            startVoice(); speak("I'm back. What's up?")
+        }
+
+        val layout = group("▦  DASHBOARD LAYOUT", "Make the home screen feel like yours.")
+        action(layout, "CUSTOMIZE HOME SCREEN", "Reorder sections, hide what you don't use, and save your layout.") { showLayoutEditor(page) }
+
+        val data = group("↻  DATA & APP", "Refresh your home-screen information whenever you want.")
+        action(data, "REFRESH WEATHER & NEWS", "Headlines and weather require an internet connection.") {
+            loadDashboard(); speak("Refreshing the dashboard. One sec.")
+        }
+
+        val save = button("SAVE ALL SETTINGS") {
+            if (url.text.isNotBlank() && !(url.text.toString().startsWith("http://") || url.text.toString().startsWith("https://"))) {
+                speak("The Home Assistant address should start with http or https.")
+                return@button
+            }
             prefs.edit().putString("weather_city", city.text.toString().trim())
-                .putString("ha_url", url.text.toString().trim())
+                .putString("ha_url", url.text.toString().trim().trimEnd('/'))
                 .putString("ha_light_entity", light.text.toString().trim())
                 .putString("ha_switch_entity", plug.text.toString().trim())
                 .putString("ha_vacuum_entity", vacuum.text.toString().trim()).apply()
             if (token.text.isNotBlank()) saveSecret("ha_token", token.text.toString().trim())
             if (geminiKey.text.isNotBlank()) saveSecret("gemini_api_key", geminiKey.text.toString().trim())
-            loadDashboard(); showDashboardTab(); speak("Settings saved. Gemini is ready if your key is valid.")
-        }, LinearLayout.LayoutParams(-1, 52).apply { topMargin = 18 })
+            loadDashboard()
+            showDashboardTab()
+            speak("Settings saved. Your home screen is updating.")
+        }
+        save.text = "✓   SAVE ALL SETTINGS"
+        page.addView(save, LinearLayout.LayoutParams(-1, 54).apply { topMargin = 5 })
+        page.addView(label("DUDE HOME OS  •  TECH IT WITH EZ", 9f, Color.rgb(91, 130, 163), true)
+            .apply { gravity = Gravity.CENTER; setPadding(0, 20, 0, 4) })
         return page
     }
 
