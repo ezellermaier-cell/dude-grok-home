@@ -382,7 +382,7 @@ class MainActivity : Activity() {
             "WEATHER" -> buildWeatherPage()
             else -> dashboardWeb
         }
-        mainScroll.addView(page, ScrollView.LayoutParams(-1, -2))
+        mainScroll.addView(page, android.view.ViewGroup.LayoutParams(-1, -2))
         mainScroll.post { mainScroll.scrollTo(0, 0) }
     }
 
