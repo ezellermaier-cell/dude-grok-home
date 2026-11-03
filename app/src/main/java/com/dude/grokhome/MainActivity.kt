@@ -26,10 +26,10 @@ import java.util.concurrent.Executors
 
 /** DUDE 2.0: completely rebuilt native dashboard and conversation layer. */
 class MainActivity : Activity() {
-    private val navy = Color.rgb(4, 10, 25)
-    private val panel = Color.rgb(11, 30, 55)
-    private val cyan = Color.rgb(70, 211, 255)
-    private val mint = Color.rgb(87, 235, 190)
+    private val navy = Color.rgb(5, 12, 28)
+    private val panel = Color.rgb(13, 27, 49)
+    private val cyan = Color.rgb(39, 170, 245)
+    private val mint = Color.rgb(53, 211, 190)
     private val muted = Color.rgb(155, 184, 211)
     private val io = Executors.newFixedThreadPool(4)
     private val main = Handler(Looper.getMainLooper())
@@ -48,6 +48,7 @@ class MainActivity : Activity() {
     private lateinit var mainScroll: ScrollView
     private lateinit var dashboardPage: LinearLayout
     private lateinit var settingsPage: LinearLayout
+    private val dashboardSections = linkedMapOf<String, View>()
     private var ttsReady = false
     private var receiverRegistered = false
     private var weatherText = ""
@@ -129,7 +130,7 @@ class MainActivity : Activity() {
             orientation = LinearLayout.VERTICAL
             setPadding(if (wide) 22 else 14, 10, if (wide) 22 else 14, 10)
             background = GradientDrawable(GradientDrawable.Orientation.TL_BR,
-                intArrayOf(Color.rgb(2, 7, 22), Color.rgb(5, 22, 46), Color.rgb(10, 9, 34)))
+                intArrayOf(Color.rgb(5, 12, 28), Color.rgb(8, 24, 46), Color.rgb(10, 18, 37)))
         }
         fun label(text: String, size: Float, color: Int = Color.WHITE, bold: Boolean = false) =
             txt(text, size, color, bold)
@@ -137,7 +138,7 @@ class MainActivity : Activity() {
             LinearLayout(this).apply {
                 orientation = LinearLayout.VERTICAL
                 setPadding(14, 12, 14, 12)
-                background = grad(Color.rgb(8, 25, 52), Color.rgb(4, 14, 34), accent, 22f)
+                background = grad(Color.rgb(15, 35, 61), Color.rgb(9, 22, 42), Color.rgb(36, 104, 157), 18f)
                 addView(label(title, 11f, accent, true).apply { letterSpacing = 0.08f })
             }
 
@@ -216,6 +217,8 @@ class MainActivity : Activity() {
             page.addView(top)
         }
 
+        dashboardSections["OVERVIEW"] = top
+
         val chat = panel("◉  DUDE CHANNEL  /  VOICE + TEXT", cyan)
         response = label("Yo. I'm DUDE. Weather, headlines, time, and your smart home. No awkward small talk required.", 13f)
         response.maxLines = 2
@@ -232,6 +235,7 @@ class MainActivity : Activity() {
         }, LinearLayout.LayoutParams(94, 48))
         chat.addView(askRow)
         page.addView(chat, LinearLayout.LayoutParams(-1, if (wide) 126 else 150).apply { bottomMargin = 12 })
+        dashboardSections["DUDE CHANNEL"] = chat
 
         val home = panel("⌂  SMART HOME  /  YOUR CONNECTED DEVICES", mint)
         val homeHead = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
@@ -248,9 +252,10 @@ class MainActivity : Activity() {
         }
         home.addView(tiles)
         page.addView(home, LinearLayout.LayoutParams(-1, if (wide) 132 else 142).apply { bottomMargin = 8 })
-        page.addView(label("DUDE 2.0  •  YOUR HOME, AT A GLANCE", 8f, muted, true).apply {
+        dashboardSections["SMART HOME"] = home
+        val footer = label("TECH IT WITH EZ  •  DUDE HOME INTELLIGENCE", 8f, muted, true).apply {
             gravity = Gravity.CENTER; setPadding(0, 5, 0, 5); letterSpacing = 0.12f
-        })
+        }
         scroll.addView(page)
         root.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
         settingsPage = buildSettingsPage()
@@ -260,6 +265,65 @@ class MainActivity : Activity() {
         root.addView(nav)
         setContentView(root)
         scroll.post { page.minimumHeight = scroll.height }
+        applySavedDashboardLayout(footer)
+    }
+
+    private fun applySavedDashboardLayout(footer: View? = null) {
+        if (!::dashboardPage.isInitialized) return
+        val defaultOrder = listOf("OVERVIEW", "DUDE CHANNEL", "SMART HOME")
+        val savedOrder = prefs.getString("dashboard_order", defaultOrder.joinToString("|")).orEmpty()
+            .split("|").filter { it in dashboardSections.keys }
+        val order = (savedOrder + defaultOrder.filter { it !in savedOrder }).distinct()
+        val hidden = prefs.getStringSet("dashboard_hidden", emptySet()).orEmpty()
+        dashboardPage.removeAllViews()
+        order.filter { it !in hidden }.forEach { key ->
+            val view = dashboardSections[key] ?: return@forEach
+            val lp = view.layoutParams ?: LinearLayout.LayoutParams(-1, if (key == "OVERVIEW") 0 else 140)
+            dashboardPage.addView(view, lp)
+        }
+        if (footer != null) dashboardPage.addView(footer)
+    }
+
+    private fun showLayoutEditor(parent: LinearLayout) {
+        val keys = listOf("OVERVIEW", "DUDE CHANNEL", "SMART HOME")
+        val order = prefs.getString("dashboard_order", keys.joinToString("|")).orEmpty()
+            .split("|").filter { it in keys }.toMutableList()
+        (keys - order.toSet()).forEach { order.add(it) }
+        val hidden = prefs.getStringSet("dashboard_hidden", emptySet()).orEmpty().toMutableSet()
+        val editor = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        val rows = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        fun redraw() {
+            rows.removeAllViews()
+            order.forEachIndexed { index, key ->
+                val row = LinearLayout(this).apply {
+                    orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
+                    background = shape(Color.rgb(12, 31, 54), Color.rgb(39, 94, 140), 14f)
+                    setPadding(8, 4, 8, 4)
+                }
+                val check = CheckBox(this).apply {
+                    text = key; isChecked = key !in hidden; setTextColor(Color.WHITE); buttonTintList = android.content.res.ColorStateList.valueOf(cyan)
+                    setOnCheckedChangeListener { _, checked -> if (checked) hidden.remove(key) else hidden.add(key) }
+                }
+                row.addView(check, LinearLayout.LayoutParams(0, 48, 1f))
+                row.addView(button("↑") { if (index > 0) { val v=order.removeAt(index); order.add(index-1,v); redraw() } }, LinearLayout.LayoutParams(44,44))
+                row.addView(button("↓") { if (index < order.lastIndex) { val v=order.removeAt(index); order.add(index+1,v); redraw() } }, LinearLayout.LayoutParams(44,44).apply { leftMargin=5 })
+                rows.addView(row, LinearLayout.LayoutParams(-1, 54).apply { bottomMargin=6 })
+            }
+        }
+        redraw()
+        editor.addView(txt("DASHBOARD LAYOUT", 18f, Color.WHITE, true))
+        editor.addView(txt("Choose what appears and use the arrows to change the order.", 11f, muted))
+        editor.addView(rows)
+        AlertDialog.Builder(this).setTitle("CUSTOMIZE DUDE")
+            .setView(ScrollView(this).apply { addView(editor) })
+            .setPositiveButton("SAVE LAYOUT") { _, _ ->
+                prefs.edit().putString("dashboard_order", order.joinToString("|"))
+                    .putStringSet("dashboard_hidden", hidden).apply()
+                showDashboardTab()
+            }.setNeutralButton("RESET") { _, _ ->
+                prefs.edit().remove("dashboard_order").remove("dashboard_hidden").apply()
+                showDashboardTab()
+            }.setNegativeButton("CANCEL", null).show()
     }
 
     private fun showDashboardTab() {
@@ -295,6 +359,9 @@ class MainActivity : Activity() {
         val light = field("Main light entity ID", prefs.getString("ha_light_entity", "").orEmpty())
         val plug = field("Smart plug entity ID", prefs.getString("ha_switch_entity", "").orEmpty())
         val vacuum = field("Vacuum entity ID", prefs.getString("ha_vacuum_entity", "").orEmpty())
+        section("DASHBOARD & TABS")
+        page.addView(button("MOVE TABS / CUSTOMIZE LAYOUT") { showLayoutEditor(page) }, LinearLayout.LayoutParams(-1, 48).apply { bottomMargin = 8 })
+        page.addView(txt("Reorder dashboard sections, hide sections you do not use, and save your layout. Your choices stay on this tablet.", 10f, muted))
         section("VOICE & ASSISTANT")
         page.addView(button("CHOOSE DUDE'S VOICE") { chooseVoice() }, LinearLayout.LayoutParams(-1, 48).apply { bottomMargin = 8 })
         page.addView(button("START LISTENING FOR HEY DUDE") { startVoice(); speak("I'm back. What's up?") }, LinearLayout.LayoutParams(-1, 48).apply { bottomMargin = 8 })
