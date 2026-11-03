@@ -617,9 +617,14 @@ class MainActivity : Activity() {
                     text = key; isChecked = key !in hidden; setTextColor(Color.WHITE); buttonTintList = android.content.res.ColorStateList.valueOf(cyan)
                     setOnCheckedChangeListener { _, checked -> if (checked) hidden.remove(key) else hidden.add(key) }
                 }
+                row.addView(txt("☰", 20f, cyan, true).apply { gravity = Gravity.CENTER }, LinearLayout.LayoutParams(34, 48))
                 row.addView(check, LinearLayout.LayoutParams(0, 48, 1f))
-                row.addView(button("↑") { if (index > 0) { val v=order.removeAt(index); order.add(index-1,v); redraw() } }, LinearLayout.LayoutParams(44,44))
-                row.addView(button("↓") { if (index < order.lastIndex) { val v=order.removeAt(index); order.add(index+1,v); redraw() } }, LinearLayout.LayoutParams(44,44).apply { leftMargin=5 })
+                row.contentDescription = key
+                row.setOnLongClickListener {
+                    val clip = android.content.ClipData.newPlainText("dashboard-section", key)
+                    row.startDragAndDrop(clip, View.DragShadowBuilder(row), key, 0)
+                    true
+                }
                 rows.addView(row, LinearLayout.LayoutParams(-1, 54).apply { bottomMargin=6 })
             }
         }
