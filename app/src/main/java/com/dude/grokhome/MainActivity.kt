@@ -122,152 +122,331 @@ class MainActivity : Activity() {
         setOnClickListener { action() }
     }
 
+    private lateinit var navBar: LinearLayout
+    private var activeSection = "HOME"
+
     private fun buildUi() {
-        // Responsive Echo Show-style dashboard. Wide displays use a three-column
-        // command center; narrow displays reflow into a vertically scrolling layout.
         val wide = resources.configuration.screenWidthDp >= 600 &&
             resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(if (wide) 22 else 14, 10, if (wide) 22 else 14, 10)
-            background = GradientDrawable(GradientDrawable.Orientation.TL_BR,
-                intArrayOf(Color.rgb(10, 18, 32), Color.rgb(13, 24, 41), Color.rgb(15, 28, 46)))
+            setPadding(if (wide) 24 else 16, 12, if (wide) 24 else 16, 10)
+            setBackgroundColor(Color.rgb(241, 245, 249))
         }
-        fun label(text: String, size: Float, color: Int = Color.WHITE, bold: Boolean = false) =
-            txt(text, size, color, bold)
-        fun panel(title: String, accent: Int = cyan): LinearLayout =
-            LinearLayout(this).apply {
-                orientation = LinearLayout.VERTICAL
-                setPadding(16, 14, 16, 14)
-                background = shape(Color.rgb(20, 32, 50), Color.rgb(48, 67, 91), 14f)
-                addView(label(title, 11f, accent, true).apply { letterSpacing = 0.08f })
-            }
 
-        val header = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+        val header = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(0, 0, 0, 12)
+        }
         val brand = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        brand.addView(label("DUDE", if (wide) 30f else 25f, cyan, true).apply {
-            letterSpacing = 0.2f; setShadowLayer(0f, 0f, 0f, Color.TRANSPARENT)
-        })
-        brand.addView(label("PERSONAL HOME DASHBOARD", 9f, muted, true).apply { letterSpacing = 0.12f })
-        header.addView(brand, LinearLayout.LayoutParams(0, 54, 1f))
-        status = label("● READY", 10f, mint, true)
+        brand.addView(txt("DUDE", 26f, Color.rgb(24, 48, 76), true))
+        brand.addView(txt("HOME INTELLIGENCE", 9f, Color.rgb(102, 122, 145), true).apply { letterSpacing = 0.12f })
+        header.addView(brand, LinearLayout.LayoutParams(0, 52, 1f))
+        status = txt("● SYSTEM READY", 10f, Color.rgb(28, 142, 115), true)
         header.addView(status)
-        header.addView(button("⚙") { showSettingsTab() }, LinearLayout.LayoutParams(48, 42).apply { leftMargin = 10 })
+        header.addView(button("⚙") { showSectionTab("SETTINGS") }, LinearLayout.LayoutParams(46, 42).apply { leftMargin = 10 })
         root.addView(header)
 
-        val scroll = ScrollView(this).apply { isFillViewport = true; isVerticalScrollBarEnabled = false }
-        mainScroll = scroll
-        val page = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        dashboardPage = page
-        val top = LinearLayout(this).apply {
-            orientation = if (wide) LinearLayout.HORIZONTAL else LinearLayout.VERTICAL
+        mainScroll = ScrollView(this).apply {
+            isFillViewport = true
+            isVerticalScrollBarEnabled = false
+            background = shape(Color.rgb(241, 245, 249), Color.TRANSPARENT, 0f)
+        }
+        dashboardPage = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(0, 2, 0, 18)
+        }
+        settingsPage = buildSettingsPage()
+        buildDashboard(wide)
+        mainScroll.addView(dashboardPage)
+        root.addView(mainScroll, LinearLayout.LayoutParams(-1, 0, 1f))
+
+        navBar = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
+            setPadding(0, 8, 0, 0)
         }
+        root.addView(navBar, LinearLayout.LayoutParams(-1, 54))
+        setContentView(root)
+        renderNavigation()
+        mainScroll.post { dashboardPage.minimumHeight = mainScroll.height }
+        applySavedDashboardLayout(dashboardFooter)
+    }
 
-        val leftColumn = LinearLayout(this).apply {
+    private fun card(title: String, subtitle: String = ""): LinearLayout {
+        val box = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
+            setPadding(16, 14, 16, 14)
+            background = shape(Color.WHITE, Color.rgb(222, 230, 239), 14f)
+            elevation = 1.5f
         }
-        val timeCard = panel("LOCAL TIME  /  YOUR DAY", cyan)
-        clock = label("--:--", if (wide) 52f else 48f, Color.WHITE, true).apply {
-            setShadowLayer(0f, 0f, 0f, Color.TRANSPARENT)
+        box.addView(txt(title, 11f, Color.rgb(83, 105, 130), true).apply { letterSpacing = 0.07f })
+        if (subtitle.isNotBlank()) box.addView(txt(subtitle, 10f, Color.rgb(133, 149, 169)).apply { setPadding(0, 3, 0, 0) })
+        return box
+    }
+
+    private fun buildDashboard(wide: Boolean) {
+        dashboardSections.clear()
+        val intro = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(2, 10, 2, 16)
         }
-        date = label("LOADING", 12f, muted, true)
+        intro.addView(txt("Good to see you.", 25f, Color.rgb(24, 43, 66), true))
+        intro.addView(txt("Your home at a glance.", 13f, Color.rgb(105, 124, 146)))
+        dashboardPage.addView(intro)
+
+        val overview = LinearLayout(this).apply {
+            orientation = if (wide) LinearLayout.HORIZONTAL else LinearLayout.VERTICAL
+        }
+        val left = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        val timeCard = card("LOCAL TIME", "YOUR DAY")
+        clock = txt("--:--", if (wide) 48f else 42f, Color.rgb(25, 49, 76), true)
+        date = txt("LOADING", 11f, Color.rgb(104, 124, 148), true)
         timeCard.addView(clock)
-        timeCard.addView(date)
-        timeCard.addView(label("YOUR ASSISTANT IS READY", 9f, mint, true).apply { setPadding(0, 7, 0, 0) })
-        leftColumn.addView(timeCard, LinearLayout.LayoutParams(-1, 0, 1.05f).apply { bottomMargin = 10 })
+        timeCard.addView(date.apply { setPadding(0, 2, 0, 8) })
+        timeCard.addView(txt("DUDE IS ONLINE", 9f, Color.rgb(31, 153, 126), true))
+        left.addView(timeCard, LinearLayout.LayoutParams(-1, 0, 1f).apply { bottomMargin = 10 })
 
-        val wx = panel("◈  WEATHER / ATMOSPHERE", mint)
-        weatherTitle = label("SET YOUR CITY", 19f, Color.WHITE, true)
-        weatherBody = label("Your local forecast will appear here.", 12f, muted)
+        val wx = card("WEATHER", "LOCAL CONDITIONS")
+        weatherTitle = txt("SET YOUR CITY", 18f, Color.rgb(30, 54, 81), true)
+        weatherBody = txt("Choose your city in Settings to see the local forecast.", 12f, Color.rgb(105, 124, 146))
         wx.addView(weatherTitle)
-        wx.addView(weatherBody)
-        leftColumn.addView(wx, LinearLayout.LayoutParams(-1, 0, 0.95f))
+        wx.addView(weatherBody.apply { setPadding(0, 4, 0, 0) })
+        left.addView(wx, LinearLayout.LayoutParams(-1, 0, 1f))
 
-        val coreCard = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER
-            setPadding(14, 14, 14, 14)
-            background = shape(Color.rgb(22, 39, 61), Color.rgb(65, 105, 145), 16f)
-        }
-        coreCard.addView(label("VOICE ASSISTANT", 10f, mint, true).apply { letterSpacing = 0.22f })
-        orb = label("●", if (wide) 76f else 64f, cyan, true).apply {
-            gravity = Gravity.CENTER; setShadowLayer(0f, 0f, 0f, Color.TRANSPARENT)
-        }
-        coreCard.addView(orb, LinearLayout.LayoutParams(-1, 0, 1f))
-        coreCard.addView(label("DUDE ASSISTANT", 16f, Color.WHITE, true).apply { gravity = Gravity.CENTER })
-        coreCard.addView(label("I'm listening. What's up?", 11f, muted).apply { gravity = Gravity.CENTER; setPadding(0, 4, 0, 12) })
-        coreCard.addView(button("🎙  TALK TO DUDE") { startVoice(); speak("Yo. I'm listening. What's up?") },
-            LinearLayout.LayoutParams(-1, 48))
+        val assistant = card("DUDE ASSISTANT", "VOICE CONTROL • HEY DUDE")
+        assistant.gravity = Gravity.CENTER_HORIZONTAL
+        orb = txt("●", if (wide) 66f else 54f, Color.rgb(51, 130, 204), true).apply { gravity = Gravity.CENTER }
+        assistant.addView(orb, LinearLayout.LayoutParams(-1, 0, 1f))
+        assistant.addView(txt("Ready when you are.", 14f, Color.rgb(30, 54, 81), true))
+        assistant.addView(txt("Hands-free voice and quick commands", 10f, Color.rgb(105, 124, 146)))
+        assistant.addView(button("TALK TO DUDE") { startVoice(); speak("I'm listening. What's up?") },
+            LinearLayout.LayoutParams(-1, 44).apply { topMargin = 12 })
 
-        val news = panel("▤  GOOGLE NEWS  /  TOP STORIES", cyan)
-        newsRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        val news = card("TOP STORIES", "LATEST HEADLINES")
+        newsRow = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         news.addView(newsRow, LinearLayout.LayoutParams(-1, 0, 1f))
-        news.addView(button("VIEW NEWS  →") { handle("read the news") }, LinearLayout.LayoutParams(-1, 40))
+        news.addView(button("OPEN NEWS") { showSectionTab("NEWS") }, LinearLayout.LayoutParams(-1, 40).apply { topMargin = 8 })
 
         if (wide) {
-            top.addView(leftColumn, LinearLayout.LayoutParams(0, -1, 1.05f).apply { rightMargin = 10 })
-            top.addView(coreCard, LinearLayout.LayoutParams(0, -1, 1.05f).apply { rightMargin = 10 })
-            top.addView(news, LinearLayout.LayoutParams(0, -1, 1.1f))
-            page.addView(top, LinearLayout.LayoutParams(-1, if (wide) 330 else 300).apply { bottomMargin = 14 })
+            overview.addView(left, LinearLayout.LayoutParams(0, 300, 1f).apply { rightMargin = 12 })
+            overview.addView(assistant, LinearLayout.LayoutParams(0, 300, 1f).apply { rightMargin = 12 })
+            overview.addView(news, LinearLayout.LayoutParams(0, 300, 1.15f))
         } else {
-            leftColumn.layoutParams = LinearLayout.LayoutParams(-1, 300).apply { bottomMargin = 10 }
-            top.addView(leftColumn)
-            top.addView(coreCard, LinearLayout.LayoutParams(-1, 300).apply { bottomMargin = 10 })
-            top.addView(news, LinearLayout.LayoutParams(-1, 300))
-            page.addView(top)
+            overview.addView(left, LinearLayout.LayoutParams(-1, 280).apply { bottomMargin = 10 })
+            overview.addView(assistant, LinearLayout.LayoutParams(-1, 250).apply { bottomMargin = 10 })
+            overview.addView(news, LinearLayout.LayoutParams(-1, 260))
         }
+        dashboardPage.addView(overview, LinearLayout.LayoutParams(-1, if (wide) 300 else -2).apply { bottomMargin = 12 })
+        dashboardSections["OVERVIEW"] = overview
 
-        dashboardSections["OVERVIEW"] = top
-
-        val chat = panel("◉  DUDE CHANNEL  /  VOICE + TEXT", cyan)
-        response = label("Yo. I'm DUDE. Weather, headlines, time, and your smart home. No awkward small talk required.", 13f)
-        response.maxLines = 2
-        chat.addView(response, LinearLayout.LayoutParams(-1, 44))
+        val assistantChannel = card("ASSISTANT ACTIVITY", "VOICE + TEXT")
+        response = txt("DUDE is ready. Ask about the weather, time, headlines, or connected devices.", 13f, Color.rgb(47, 67, 91))
+        assistantChannel.addView(response)
         val askRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
         ask = EditText(this).apply {
-            hint = "Ask DUDE anything…"; setHintTextColor(muted); setTextColor(Color.WHITE); textSize = 16f
-            setSingleLine(true); inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
-            background = shape(Color.rgb(11, 21, 36), Color.rgb(54, 76, 101), 10f); setPadding(13, 0, 13, 0)
+            hint = "Type a command…"
+            setHintTextColor(Color.rgb(140, 155, 174))
+            setTextColor(Color.rgb(29, 48, 70))
+            textSize = 14f
+            setSingleLine(true)
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
+            background = shape(Color.rgb(246, 249, 252), Color.rgb(218, 227, 237), 10f)
+            setPadding(12, 0, 12, 0)
         }
-        askRow.addView(ask, LinearLayout.LayoutParams(0, 48, 1f).apply { rightMargin = 8 })
-        askRow.addView(button("SEND  ↗") {
-            val q = ask.text.toString().trim(); ask.setText(""); if (q.isNotBlank()) handle(q)
-        }, LinearLayout.LayoutParams(94, 48))
-        chat.addView(askRow)
-        page.addView(chat, LinearLayout.LayoutParams(-1, if (wide) 126 else 150).apply { bottomMargin = 12 })
-        dashboardSections["DUDE CHANNEL"] = chat
+        askRow.addView(ask, LinearLayout.LayoutParams(0, 46, 1f).apply { rightMargin = 8 })
+        askRow.addView(button("SEND") {
+            val q = ask.text.toString().trim()
+            ask.setText("")
+            if (q.isNotBlank()) handle(q)
+        }, LinearLayout.LayoutParams(90, 46))
+        assistantChannel.addView(askRow, LinearLayout.LayoutParams(-1, 46).apply { topMargin = 10 })
+        dashboardPage.addView(assistantChannel, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = 12 })
+        dashboardSections["DUDE CHANNEL"] = assistantChannel
 
-        val home = panel("⌂  SMART HOME  /  YOUR CONNECTED DEVICES", mint)
+        val home = card("CONNECTED HOME", "YOUR DEVICES")
         val homeHead = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
-        homeHead.addView(label("DEVICE OVERVIEW", 10f, muted, true), LinearLayout.LayoutParams(0, 28, 1f))
-        homeHead.addView(button("VIEW ALL DEVICES  →") { discoverDevices() }, LinearLayout.LayoutParams(154, 40))
+        homeHead.addView(txt("Manage lights, climate, laundry and more.", 11f, Color.rgb(105, 124, 146)),
+            LinearLayout.LayoutParams(0, 36, 1f))
+        homeHead.addView(button("VIEW DEVICES") { showSectionTab("DEVICES") }, LinearLayout.LayoutParams(130, 40))
         home.addView(homeHead)
-        val tiles = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        listOf("💡\nLIGHTS", "❄\nCLIMATE", "▤\nLAUNDRY", "◎\nVACUUM").forEachIndexed { index, name ->
-            tiles.addView(label(name, 10f, if (index == 0) cyan else muted, true).apply {
-                gravity = Gravity.CENTER
-                background = shape(Color.rgb(27, 43, 63), Color.rgb(55, 77, 103), 11f)
-                setPadding(3, 8, 3, 8); setOnClickListener { discoverDevices() }
-            }, LinearLayout.LayoutParams(0, if (wide) 66 else 72, 1f).apply { setMargins(3, 3, 3, 3) })
-        }
-        home.addView(tiles)
-        page.addView(home, LinearLayout.LayoutParams(-1, if (wide) 132 else 142).apply { bottomMargin = 8 })
-        dashboardSections["SMART HOME"] = home
-        val footer = label("TECH IT WITH EZ  •  DUDE HOME INTELLIGENCE", 8f, muted, true).apply {
-            gravity = Gravity.CENTER; setPadding(0, 5, 0, 5); letterSpacing = 0.12f
+        val footer = txt("TECH IT WITH EZ  •  DUDE HOME INTELLIGENCE", 9f, Color.rgb(133, 149, 169), true).apply {
+            gravity = Gravity.CENTER
+            setPadding(0, 18, 0, 8)
         }
         dashboardFooter = footer
-        scroll.addView(page)
-        root.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
-        settingsPage = buildSettingsPage()
-        val nav = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; setPadding(0, 8, 0, 0) }
-        nav.addView(button("⌂  HOME") { showDashboardTab() }, LinearLayout.LayoutParams(0, 48, 1f).apply { rightMargin = 6 })
-        nav.addView(button("⚙  SETTINGS") { showSettingsTab() }, LinearLayout.LayoutParams(0, 48, 1f).apply { leftMargin = 6 })
-        root.addView(nav)
-        setContentView(root)
-        scroll.post { page.minimumHeight = scroll.height }
-        applySavedDashboardLayout(footer)
+        dashboardPage.addView(home, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = 10 })
+        dashboardSections["SMART HOME"] = home
+    }
+
+    private fun renderNavigation() {
+        if (!::navBar.isInitialized) return
+        navBar.removeAllViews()
+        val tabs = listOf("HOME", "DEVICES", "ROUTINES", "ASSISTANT", "NEWS", "WEATHER", "SETTINGS")
+        tabs.forEach { tab ->
+            val active = tab == activeSection
+            val item = TextView(this).apply {
+                text = when (tab) {
+                    "HOME" -> "⌂\\nHome"
+                    "DEVICES" -> "▦\\nDevices"
+                    "ROUTINES" -> "↻\\nRoutines"
+                    "ASSISTANT" -> "◉\\nAssistant"
+                    "NEWS" -> "▤\\nNews"
+                    "WEATHER" -> "☼\\nWeather"
+                    else -> "⚙\\nSettings"
+                }
+                gravity = Gravity.CENTER
+                textSize = 9f
+                maxLines = 2
+                setTextColor(if (active) Color.rgb(35, 112, 190) else Color.rgb(106, 124, 145))
+                typeface = Typeface.create("sans-serif", if (active) Typeface.BOLD else Typeface.MEDIUM)
+                setBackgroundColor(Color.TRANSPARENT)
+                setOnClickListener { showSectionTab(tab) }
+            }
+            navBar.addView(item, LinearLayout.LayoutParams(0, 52, 1f))
+        }
+    }
+
+    private fun showSectionTab(section: String) {
+        activeSection = section
+        renderNavigation()
+        mainScroll.removeAllViews()
+        val page: View = when (section) {
+            "HOME" -> {
+                applySavedDashboardLayout(dashboardFooter)
+                dashboardPage
+            }
+            "SETTINGS" -> settingsPage
+            "DEVICES" -> buildDevicesPage()
+            "ROUTINES" -> buildRoutinesPage()
+            "ASSISTANT" -> buildAssistantPage()
+            "NEWS" -> buildNewsPage()
+            "WEATHER" -> buildWeatherPage()
+            else -> dashboardPage
+        }
+        mainScroll.addView(page)
+    }
+
+    private fun pageShell(title: String, description: String): LinearLayout {
+        val page = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(2, 16, 2, 22)
+        }
+        page.addView(txt(title, 25f, Color.rgb(24, 43, 66), true))
+        page.addView(txt(description, 12f, Color.rgb(105, 124, 146)).apply { setPadding(0, 4, 0, 18) })
+        return page
+    }
+
+    private fun buildDevicesPage(): LinearLayout {
+        val page = pageShell("Devices", "Connected equipment and live availability.")
+        val summary = card("HOME ASSISTANT", "DEVICE CONNECTION")
+        val configured = prefs.getString("ha_url", "").orEmpty().isNotBlank() && loadSecret("ha_token").isNotBlank()
+        summary.addView(txt(if (configured) "Connection details saved" else "Home Assistant is not configured",
+            14f, if (configured) Color.rgb(31, 153, 126) else Color.rgb(183, 119, 39), true))
+        summary.addView(button(if (configured) "REFRESH DEVICE LIST" else "CONFIGURE CONNECTION") {
+            if (configured) loadDeviceList(page) else showSectionTab("SETTINGS")
+        }, LinearLayout.LayoutParams(-1, 44).apply { topMargin = 12 })
+        page.addView(summary, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = 12 })
+        val list = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        list.tag = "device_list"
+        page.addView(list)
+        if (configured) loadDeviceList(page)
+        return page
+    }
+
+    private fun loadDeviceList(page: LinearLayout) {
+        val list = page.findViewWithTag<LinearLayout>("device_list") ?: return
+        list.removeAllViews()
+        list.addView(txt("Loading connected devices…", 12f, Color.rgb(105, 124, 146)))
+        val base = prefs.getString("ha_url", "").orEmpty()
+        val token = loadSecret("ha_token")
+        io.execute {
+            try {
+                val states = JSONArray(HomeAssistantClient(base, token).states())
+                runOnUiThread {
+                    list.removeAllViews()
+                    var count = 0
+                    for (i in 0 until states.length()) {
+                        val item = states.optJSONObject(i) ?: continue
+                        val id = item.optString("entity_id")
+                        val domain = id.substringBefore(".")
+                        if (domain !in setOf("light", "switch", "fan", "cover", "climate", "vacuum", "lock", "media_player")) continue
+                        count++
+                        val name = item.optJSONObject("attributes")?.optString("friendly_name", id) ?: id
+                        val stateText = item.optString("state", "unknown")
+                        val row = card(name, id)
+                        val statusLine = txt(stateText.uppercase(Locale.getDefault()),
+                            11f, if (stateText in setOf("on", "home", "playing", "open", "heat", "cool")) Color.rgb(31, 153, 126) else Color.rgb(105, 124, 146), true)
+                        row.addView(statusLine.apply { setPadding(0, 7, 0, 6) })
+                        row.addView(button("MANAGE DEVICE") { deviceActions(id, name) }, LinearLayout.LayoutParams(-1, 40))
+                        list.addView(row, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = 9 })
+                    }
+                    if (count == 0) list.addView(txt("No supported devices were found.", 12f, Color.rgb(105, 124, 146)))
+                }
+            } catch (_: Exception) {
+                runOnUiThread {
+                    list.removeAllViews()
+                    list.addView(txt("Could not reach Home Assistant. Check the server URL and access token in Settings.", 12f, Color.rgb(166, 83, 70)))
+                }
+            }
+        }
+    }
+
+    private fun buildRoutinesPage(): LinearLayout {
+        val page = pageShell("Routines", "Shortcuts and automations for your home.")
+        val box = card("AUTOMATIONS", "ROUTINE MANAGEMENT")
+        box.addView(txt("Routine creation is not connected yet. Your Home Assistant automations can be managed through its configured integrations; DUDE does not currently create or edit them.", 13f, Color.rgb(65, 84, 107)))
+        box.addView(button("OPEN DEVICE CONNECTION SETTINGS") { showSectionTab("SETTINGS") },
+            LinearLayout.LayoutParams(-1, 44).apply { topMargin = 12 })
+        page.addView(box)
+        return page
+    }
+
+    private fun buildAssistantPage(): LinearLayout {
+        val page = pageShell("Assistant", "Talk to DUDE or send a quick command.")
+        val box = card("DUDE", "VOICE ASSISTANT")
+        orb = txt("●", 72f, Color.rgb(51, 130, 204), true).apply { gravity = Gravity.CENTER }
+        box.addView(orb, LinearLayout.LayoutParams(-1, 112))
+        box.addView(response, LinearLayout.LayoutParams(-1, -2))
+        box.addView(button("START LISTENING") { startVoice(); speak("I'm listening. What's up?") },
+            LinearLayout.LayoutParams(-1, 46).apply { topMargin = 12 })
+        val inputRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+        inputRow.addView(ask, LinearLayout.LayoutParams(0, 48, 1f).apply { rightMargin = 8 })
+        inputRow.addView(button("SEND") {
+            val q = ask.text.toString().trim()
+            ask.setText("")
+            if (q.isNotBlank()) handle(q)
+        }, LinearLayout.LayoutParams(88, 48))
+        box.addView(inputRow, LinearLayout.LayoutParams(-1, 48).apply { topMargin = 10 })
+        page.addView(box)
+        return page
+    }
+
+    private fun buildNewsPage(): LinearLayout {
+        val page = pageShell("News", "Top headlines from your selected news feed.")
+        val list = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        if (stories.isEmpty()) list.addView(txt("Headlines are loading. Check your connection and refresh.", 12f, Color.rgb(105, 124, 146)))
+        stories.forEach { story ->
+            val row = card(story.title, story.source.ifBlank { "NEWS" })
+            row.addView(button("READ HEADLINE") { speak(story.title) }, LinearLayout.LayoutParams(-1, 40).apply { topMargin = 8 })
+            list.addView(row, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = 9 })
+        }
+        page.addView(list)
+        page.addView(button("REFRESH HEADLINES") { loadDashboard(); showSectionTab("NEWS") },
+            LinearLayout.LayoutParams(-1, 44).apply { topMargin = 10 })
+        return page
+    }
+
+    private fun buildWeatherPage(): LinearLayout {
+        val page = pageShell("Weather", "Current local conditions.")
+        val box = card("LOCAL FORECAST", prefs.getString("weather_city", "CITY NOT SET").orEmpty())
+        box.addView(txt(weatherText.ifBlank { "Set a city in Settings to load local weather." },
+            16f, Color.rgb(37, 59, 84)))
+        box.addView(button("REFRESH WEATHER") { loadDashboard(); showSectionTab("WEATHER") },
+            LinearLayout.LayoutParams(-1, 44).apply { topMargin = 12 })
+        page.addView(box)
+        return page
     }
 
     private fun applySavedDashboardLayout(footer: View? = null) {
