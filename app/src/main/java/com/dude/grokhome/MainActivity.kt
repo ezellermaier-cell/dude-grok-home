@@ -966,7 +966,7 @@ class MainActivity : Activity() {
         dashboardWeb.evaluateJavascript("window.setWeather && window.setWeather($weatherArgs)", null)
         val items = JSONArray()
         stories.take(8).forEach { story ->
-            items.put(org.json.JSONObject().put("title", story.title).put("source", story.source).put("image", story.imageUrl))
+            items.put(org.json.JSONObject().put("title", story.title).put("source", story.source).put("image", story.imageUrl).put("link", story.link))
         }
         dashboardWeb.evaluateJavascript("window.setStories && window.setStories($items)", null)
     }
