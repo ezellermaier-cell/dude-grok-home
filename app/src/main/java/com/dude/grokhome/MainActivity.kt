@@ -194,7 +194,8 @@ class MainActivity : Activity() {
         }
         intro.addView(txt("Good to see you.", 25f, Color.rgb(24, 43, 66), true))
         intro.addView(txt("Your home at a glance.", 13f, Color.rgb(105, 124, 146)))
-        dashboardPage.addView(intro)
+        val overviewSection = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        overviewSection.addView(intro)
 
         val overview = LinearLayout(this).apply {
             orientation = if (wide) LinearLayout.HORIZONTAL else LinearLayout.VERTICAL
@@ -238,8 +239,9 @@ class MainActivity : Activity() {
             overview.addView(assistant, LinearLayout.LayoutParams(-1, 250).apply { bottomMargin = 10 })
             overview.addView(news, LinearLayout.LayoutParams(-1, 260))
         }
-        dashboardPage.addView(overview, LinearLayout.LayoutParams(-1, if (wide) 300 else -2).apply { bottomMargin = 12 })
-        dashboardSections["OVERVIEW"] = overview
+        overviewSection.addView(overview, LinearLayout.LayoutParams(-1, if (wide) 300 else -2).apply { bottomMargin = 12 })
+        dashboardPage.addView(overviewSection)
+        dashboardSections["OVERVIEW"] = overviewSection
 
         val assistantChannel = card("ASSISTANT ACTIVITY", "VOICE + TEXT")
         response = txt("DUDE is ready. Ask about the weather, time, headlines, or connected devices.", 13f, Color.rgb(47, 67, 91))
@@ -255,10 +257,11 @@ class MainActivity : Activity() {
             background = shape(Color.rgb(246, 249, 252), Color.rgb(218, 227, 237), 10f)
             setPadding(12, 0, 12, 0)
         }
-        askRow.addView(ask, LinearLayout.LayoutParams(0, 46, 1f).apply { rightMargin = 8 })
+        ask = dashboardAsk
+        askRow.addView(dashboardAsk, LinearLayout.LayoutParams(0, 46, 1f).apply { rightMargin = 8 })
         askRow.addView(button("SEND") {
-            val q = ask.text.toString().trim()
-            ask.setText("")
+            val q = dashboardAsk.text.toString().trim()
+            dashboardAsk.setText("")
             if (q.isNotBlank()) handle(q)
         }, LinearLayout.LayoutParams(90, 46))
         assistantChannel.addView(askRow, LinearLayout.LayoutParams(-1, 46).apply { topMargin = 10 })
@@ -406,16 +409,28 @@ class MainActivity : Activity() {
     private fun buildAssistantPage(): LinearLayout {
         val page = pageShell("Assistant", "Talk to DUDE or send a quick command.")
         val box = card("DUDE", "VOICE ASSISTANT")
-        orb = txt("●", 72f, Color.rgb(51, 130, 204), true).apply { gravity = Gravity.CENTER }
-        box.addView(orb, LinearLayout.LayoutParams(-1, 112))
-        box.addView(response, LinearLayout.LayoutParams(-1, -2))
+        val assistantOrb = txt("●", 72f, Color.rgb(51, 130, 204), true).apply { gravity = Gravity.CENTER }
+        box.addView(assistantOrb, LinearLayout.LayoutParams(-1, 112))
+        val assistantResponse = txt(response.text.toString(), 13f, Color.rgb(47, 67, 91))
+        box.addView(assistantResponse, LinearLayout.LayoutParams(-1, -2))
+        response = assistantResponse
         box.addView(button("START LISTENING") { startVoice(); speak("I'm listening. What's up?") },
             LinearLayout.LayoutParams(-1, 46).apply { topMargin = 12 })
         val inputRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
-        inputRow.addView(ask, LinearLayout.LayoutParams(0, 48, 1f).apply { rightMargin = 8 })
+        val assistantAsk = EditText(this).apply {
+            hint = "Type a command…"
+            setHintTextColor(Color.rgb(140, 155, 174))
+            setTextColor(Color.rgb(29, 48, 70))
+            textSize = 14f
+            setSingleLine(true)
+            background = shape(Color.rgb(246, 249, 252), Color.rgb(218, 227, 237), 10f)
+            setPadding(12, 0, 12, 0)
+        }
+        ask = assistantAsk
+        inputRow.addView(assistantAsk, LinearLayout.LayoutParams(0, 48, 1f).apply { rightMargin = 8 })
         inputRow.addView(button("SEND") {
-            val q = ask.text.toString().trim()
-            ask.setText("")
+            val q = assistantAsk.text.toString().trim()
+            assistantAsk.setText("")
             if (q.isNotBlank()) handle(q)
         }, LinearLayout.LayoutParams(88, 48))
         box.addView(inputRow, LinearLayout.LayoutParams(-1, 48).apply { topMargin = 10 })
