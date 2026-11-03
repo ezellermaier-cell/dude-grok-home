@@ -73,8 +73,12 @@ object DashboardData {
                     XmlPullParser.START_TAG -> {
                         tag = parser.name
                         if (tag == "item") { inside = true; title = ""; source = ""; link = ""; image = "" }
-                        if (inside && (tag == "media:content" || tag == "media:thumbnail" || tag == "enclosure")) {
-                            image = parser.getAttributeValue(null, "url") ?: parser.getAttributeValue(null, "href") ?: image
+                        val localTag = parser.name.substringAfter(':')
+                        if (inside && (localTag == "content" || localTag == "thumbnail" || localTag == "enclosure")) {
+                            image = parser.getAttributeValue(null, "url")
+                                ?: parser.getAttributeValue(null, "href")
+                                ?: parser.getAttributeValue(0)
+                                ?: image
                         }
                     }
                     XmlPullParser.TEXT, XmlPullParser.CDSECT -> if (inside) {
@@ -102,13 +106,30 @@ object DashboardData {
     private fun articleImage(link: String): String {
         if (link.isBlank()) return ""
         return try {
-            val html = get(link, 5000).take(350000)
-            val patterns = listOf(
-                Regex("<meta[^>]+property=['\\\"]og:image['\\\"][^>]+content=['\\\"]([^'\\\"]+)['\\\"]", RegexOption.IGNORE_CASE),
-                Regex("<meta[^>]+content=['\\\"]([^'\\\"]+)['\\\"][^>]+property=['\\\"]og:image['\\\"]", RegexOption.IGNORE_CASE),
-                Regex("<meta[^>]+name=['\\\"]twitter:image['\\\"][^>]+content=['\\\"]([^'\\\"]+)['\\\"]", RegexOption.IGNORE_CASE)
-            )
-            patterns.firstNotNullOfOrNull { it.find(html)?.groupValues?.get(1) }.orEmpty()
+            val connection = URL(link).openConnection() as HttpURLConnection
+            connection.connectTimeout = 6000
+            connection.readTimeout = 7000
+            connection.instanceFollowRedirects = true
+            connection.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 Chrome/120 Mobile Safari/537.36")
+            val html = connection.inputStream.bufferedReader().use { it.readText().take(450000) }
+            val finalUrl = connection.url.toString()
+            connection.disconnect()
+            val tags = Regex("<meta\\b[^>]*>", RegexOption.IGNORE_CASE).findAll(html)
+            for (match in tags) {
+                val tag = match.value
+                val property = Regex("""(?:property|name)\\s*=\\s*['"]([^'"]+)['"]""", RegexOption.IGNORE_CASE)
+                    .find(tag)?.groupValues?.get(1)?.lowercase().orEmpty()
+                if (property == "og:image" || property == "og:image:url" || property == "twitter:image" || property == "twitter:image:src") {
+                    val value = Regex("""content\\s*=\\s*['"]([^'"]+)['"]""", RegexOption.IGNORE_CASE)
+                        .find(tag)?.groupValues?.get(1).orEmpty()
+                    if (value.isNotBlank()) {
+                        val decoded = value.replace("&amp;", "&").replace("&#38;", "&").replace("&quot;", "\"")
+                        val resolved = URL(URL(finalUrl), decoded).toString()
+                        if (resolved.startsWith("https://") || resolved.startsWith("http://")) return resolved
+                    }
+                }
+            }
+            ""
         } catch (_: Exception) { "" }
     }
 }
