@@ -53,7 +53,8 @@ class MainActivity : Activity() {
     private var ttsReady = false
     private var receiverRegistered = false
     private var weatherText = ""
-    private var stories: List<DashboardData.NewsItem> = emptyList()\n    private val responseViews = mutableListOf<TextView>()
+    private var stories: List<DashboardData.NewsItem> = emptyList()
+    private val responseViews = mutableListOf<TextView>()
 
     private val voiceReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -245,7 +246,8 @@ class MainActivity : Activity() {
 
         val assistantChannel = card("ASSISTANT ACTIVITY", "VOICE + TEXT")
         response = txt("DUDE is ready. Ask about the weather, time, headlines, or connected devices.", 13f, Color.rgb(47, 67, 91))
-        responseViews.add(response)\n        assistantChannel.addView(response)
+        responseViews.add(response)
+        assistantChannel.addView(response)
         val askRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
         val dashboardAsk = EditText(this).apply {
             hint = "Type a command…"
@@ -413,7 +415,8 @@ class MainActivity : Activity() {
         box.addView(assistantOrb, LinearLayout.LayoutParams(-1, 112))
         val assistantResponse = txt(response.text.toString(), 13f, Color.rgb(47, 67, 91))
         box.addView(assistantResponse, LinearLayout.LayoutParams(-1, -2))
-        responseViews.add(assistantResponse)\n        response = assistantResponse
+        responseViews.add(assistantResponse)
+        response = assistantResponse
         box.addView(button("START LISTENING") { startVoice(); speak("I'm listening. What's up?") },
             LinearLayout.LayoutParams(-1, 46).apply { topMargin = 12 })
         val inputRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
@@ -577,7 +580,8 @@ class MainActivity : Activity() {
     }
 
     private fun speak(message: String) {
-        responseViews.forEach { it.text = message }\n        response.text = message
+        responseViews.forEach { it.text = message }
+        response.text = message
         setState("READY")
         if (ttsReady) {
             tts.setSpeechRate(0.94f)
