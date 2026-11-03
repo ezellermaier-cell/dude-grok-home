@@ -162,8 +162,8 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
         if (!::weatherView.isInitialized || !::newsView.isInitialized) return
         worker.execute {
             val city = prefs.getString("weather_city", "").orEmpty()
-            val weather = if (city.isBlank()) "◉  LIVE WEATHER\\nSet a city in Settings" else "◉  LIVE WEATHER\\n" + DashboardData.weather(city)
-            val news = DashboardData.headlines().replace("\\n", "     •     ")
+            val weather = if (city.isBlank()) "◉  LIVE WEATHER\nSet a city in Settings" else "◉  LIVE WEATHER\n" + DashboardData.weather(city)
+            val news = DashboardData.headlines().replace("\n", "     •     ")
             runOnUiThread {
                 weatherView.text = weather
                 newsView.text = news
