@@ -68,55 +68,85 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
     private fun buildUi() {
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(28, 18, 28, 18)
-            setBackgroundColor(bg)
+            setPadding(26, 14, 26, 14)
+            background = android.graphics.drawable.GradientDrawable(
+                android.graphics.drawable.GradientDrawable.Orientation.TL_BR,
+                intArrayOf(Color.rgb(5, 12, 28), Color.rgb(10, 27, 48), Color.rgb(7, 15, 32))
+            )
         }
-        val header = TextView(this).apply {
-            text = "DUDE   •   YOUR HOME, YOUR RULES"
-            textSize = 18f; setTextColor(blue); gravity = Gravity.CENTER
+        fun panelBackground(): android.graphics.drawable.GradientDrawable =
+            android.graphics.drawable.GradientDrawable().apply {
+                setColor(Color.rgb(14, 31, 52))
+                cornerRadius = 22f
+                setStroke(2, Color.rgb(35, 112, 158))
+            }
+        val top = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+        val brand = TextView(this).apply {
+            text = "D U D E  /  SMART HOME"
+            textSize = 17f; setTextColor(Color.rgb(91, 220, 255))
+            typeface = android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.BOLD)
         }
-        root.addView(header, LinearLayout.LayoutParams(-1, 48))
+        top.addView(brand, LinearLayout.LayoutParams(0, 46, 1f))
+        val live = TextView(this).apply {
+            text = "● SYSTEM ONLINE"
+            textSize = 11f; setTextColor(Color.rgb(91, 235, 174)); gravity = Gravity.CENTER
+        }
+        top.addView(live, LinearLayout.LayoutParams(-2, 46))
+        root.addView(top)
+
         clockView = TextView(this).apply {
-            text = "HEY THERE 👋"
-            textSize = 34f; setTextColor(Color.WHITE); gravity = Gravity.CENTER
+            text = "12:00 PM"
+            textSize = 38f; setTextColor(Color.WHITE); gravity = Gravity.CENTER
+            typeface = android.graphics.Typeface.create("sans-serif-light", android.graphics.Typeface.NORMAL)
+            setShadowLayer(18f, 0f, 0f, Color.rgb(0, 155, 255))
         }
-        root.addView(clockView, LinearLayout.LayoutParams(-1, 68))
-        val dashboardCards = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        root.addView(clockView, LinearLayout.LayoutParams(-1, 62))
+
+        val cards = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         weatherView = TextView(this).apply {
-            text = "WEATHER\\nLoading…"; textSize = 15f; setTextColor(Color.WHITE)
-            gravity = Gravity.CENTER; setPadding(12, 10, 12, 10); setBackgroundColor(panel)
+            text = "◉  LIVE WEATHER\nConnecting to the atmosphere…"
+            textSize = 16f; setTextColor(Color.WHITE); gravity = Gravity.CENTER
+            setPadding(18, 14, 18, 14); background = panelBackground()
+            typeface = android.graphics.Typeface.create("sans-serif", android.graphics.Typeface.NORMAL)
         }
         newsView = TextView(this).apply {
-            text = "LATEST NEWS\\nLoading headlines…"; textSize = 13f; setTextColor(Color.WHITE)
-            gravity = Gravity.CENTER_VERTICAL; setPadding(14, 10, 14, 10); setBackgroundColor(panel)
+            text = "GLOBAL FEED  /  GOOGLE NEWS\nFetching latest headlines…"
+            textSize = 15f; setTextColor(Color.WHITE); gravity = Gravity.CENTER_VERTICAL
+            setPadding(22, 14, 18, 14); background = panelBackground()
+            typeface = android.graphics.Typeface.create("sans-serif", android.graphics.Typeface.NORMAL)
         }
-        dashboardCards.addView(weatherView, LinearLayout.LayoutParams(0, 112, 1f).apply { setMargins(4, 4, 8, 4) })
-        dashboardCards.addView(newsView, LinearLayout.LayoutParams(0, 112, 2f).apply { setMargins(8, 4, 4, 4) })
-        root.addView(dashboardCards)
+        cards.addView(weatherView, LinearLayout.LayoutParams(0, 176, 1f).apply { setMargins(4, 8, 8, 8) })
+        cards.addView(newsView, LinearLayout.LayoutParams(0, 176, 2.2f).apply { setMargins(8, 8, 4, 8) })
+        root.addView(cards)
+
         status = TextView(this).apply {
-            text = "Ready when you are. Try a command or ask me something."
-            textSize = 16f; setTextColor(Color.LTGRAY); gravity = Gravity.CENTER
+            text = "READY  •  DUDE IS LISTENING"
+            textSize = 12f; setTextColor(Color.rgb(91, 220, 255)); gravity = Gravity.CENTER
+            letterSpacing = 0.08f
         }
-        root.addView(status, LinearLayout.LayoutParams(-1, 52))
+        root.addView(status, LinearLayout.LayoutParams(-1, 34))
+
         transcript = TextView(this).apply {
-            text = "“I’m Dude. Your lights obey me. Your snacks remain your responsibility.”"
-            textSize = 19f; setTextColor(Color.WHITE); gravity = Gravity.CENTER
-            setPadding(20, 20, 20, 20); setBackgroundColor(panel)
+            text = "“Welcome back. Your home is looking sharp. What are we doing?”"
+            textSize = 18f; setTextColor(Color.WHITE); gravity = Gravity.CENTER
+            setPadding(20, 10, 20, 10); background = panelBackground()
         }
-        root.addView(transcript, LinearLayout.LayoutParams(-1, 0, 1f).apply { setMargins(0, 16, 0, 16) })
+        root.addView(transcript, LinearLayout.LayoutParams(-1, 0, 1f).apply { setMargins(4, 4, 4, 10) })
+
         val buttons = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
         val talk = makeButton("🎙  TALK") { startListening() }
-        val devices = makeButton("⌂  DEVICES") { discoverDevices() }
+        val devices = makeButton("⌂  SMART HOME") { discoverDevices() }
         val settings = makeButton("⚙  SETTINGS") { settingsDialog() }
-        buttons.addView(talk, LinearLayout.LayoutParams(0, 64, 1f).apply { setMargins(4, 4, 4, 4) })
-        buttons.addView(devices, LinearLayout.LayoutParams(0, 64, 1f).apply { setMargins(4, 4, 4, 4) })
-        buttons.addView(settings, LinearLayout.LayoutParams(0, 64, 1f).apply { setMargins(4, 4, 4, 4) })
+        buttons.addView(talk, LinearLayout.LayoutParams(0, 58, 1f).apply { setMargins(4, 4, 4, 4) })
+        buttons.addView(devices, LinearLayout.LayoutParams(0, 58, 1.3f).apply { setMargins(4, 4, 4, 4) })
+        buttons.addView(settings, LinearLayout.LayoutParams(0, 58, 1f).apply { setMargins(4, 4, 4, 4) })
         root.addView(buttons)
         val note = TextView(this).apply {
-            text = "LOCAL COMMANDS • Optional xAI API • Tap to talk"
-            textSize = 11f; setTextColor(Color.GRAY); gravity = Gravity.CENTER
+            text = "DUDE OS  •  LIVE GOOGLE NEWS  •  VOICE CONTROL"
+            textSize = 10f; setTextColor(Color.rgb(100, 145, 174)); gravity = Gravity.CENTER
+            letterSpacing = 0.12f
         }
-        root.addView(note, LinearLayout.LayoutParams(-1, 32))
+        root.addView(note, LinearLayout.LayoutParams(-1, 24))
         setContentView(root)
     }
 
