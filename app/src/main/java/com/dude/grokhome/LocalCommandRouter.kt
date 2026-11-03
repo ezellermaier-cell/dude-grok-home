@@ -1,33 +1,22 @@
 package com.dude.grokhome
 
-/**
- * Routes simple, deterministic commands locally. These commands run locally without a cloud AI service.
- * For real device actions, provide an exact Home Assistant entity ID in settings.
- */
+/** Compatibility adapter: command interpretation is centralized in AssistantBrain. */
 class LocalCommandRouter {
     data class Result(val reply: String, val domain: String? = null, val service: String? = null, val entityId: String? = null)
+    private val brain = AssistantBrain()
 
-    fun route(utterance: String, lightEntity: String, switchEntity: String): Result? {
-        val q = utterance.lowercase().trim()
-        if (q.contains("hello") || q.contains("hey dude")) return Result("Hey! Your favorite household algorithm has arrived.")
-        if (q.contains("tell me a joke")) return Result("I tried to organize a hide and seek tournament with your appliances. The washing machine is still spinning.")
-        if (q.contains("turn on") && q.contains("light")) {
-            if (lightEntity.isBlank()) return Result("I can do that once you set your light entity in settings.")
-            return Result("Turning on your light.", "light", "turn_on", lightEntity)
+    fun route(utterance: String, lightEntity: String, switchEntity: String): Result? =
+        when (brain.understand(utterance).kind) {
+            AssistantBrain.Kind.GREETING -> Result(brain.greeting())
+            AssistantBrain.Kind.JOKE -> Result(brain.joke())
+            AssistantBrain.Kind.LIGHT_ON -> device("Lights on. Let there be photons.", "light", "turn_on", lightEntity)
+            AssistantBrain.Kind.LIGHT_OFF -> device("Lights off. Saving the planet, one switch at a time.", "light", "turn_off", lightEntity)
+            AssistantBrain.Kind.PLUG_ON -> device("Plug switched on. Electricity, at your service.", "switch", "turn_on", switchEntity)
+            AssistantBrain.Kind.PLUG_OFF -> device("Plug switched off. Power nap time.", "switch", "turn_off", switchEntity)
+            else -> null
         }
-        if (q.contains("turn off") && q.contains("light")) {
-            if (lightEntity.isBlank()) return Result("Set your light entity in settings and I'll switch it off.")
-            return Result("Turning off your light.", "light", "turn_off", lightEntity)
-        }
-        if (q.contains("turn on") && q.contains("plug")) {
-            if (switchEntity.isBlank()) return Result("Set your smart plug entity in settings first.")
-            return Result("Turning on your plug.", "switch", "turn_on", switchEntity)
-        }
-        if (q.contains("turn off") && q.contains("plug")) {
-            if (switchEntity.isBlank()) return Result("Set your smart plug entity in settings first.")
-            return Result("Turning off your plug.", "switch", "turn_off", switchEntity)
-        }
-        if (q.contains("what can you do")) return Result("I can answer locally, tell jokes, and control configured Home Assistant lights and plugs. Cloud AI is not configured; DUDE uses local commands.")
-        return null
-    }
+
+    private fun device(reply: String, domain: String, service: String, entity: String): Result =
+        if (entity.isBlank()) Result("I need your $domain device configured before I can do that.")
+        else Result(reply, domain, service, entity)
 }
