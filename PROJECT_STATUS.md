@@ -1,24 +1,24 @@
 # DUDE project status
 
-## Implemented in the current app
-- Android tablet dashboard with screen kept awake
-- Tap-to-talk speech input and spoken text-to-speech replies
-- Optional xAI Grok API connection; no Grok/X subscription credits are used
+## Implemented
+- Android 10+ landscape tablet dashboard; screen stays awake
+- Live clock and date, refreshed every second
+- Current weather by city using Open-Meteo, refreshed every 30 minutes
+- Current BBC News RSS headlines, refreshed every 30 minutes
+- Tap-to-talk speech recognition and spoken replies
+- Optional xAI Grok chat; xAI API billing is separate from an X/Grok subscription
 - Encrypted on-device storage for xAI and Home Assistant tokens
-- Home Assistant REST connection
-- Device discovery from Home Assistant entity states
-- Dashboard device picker with on/off controls for discovered lights, switches, fans and covers
-- Status display for climate, vacuum, sensors, locks and media-player entities
+- Home Assistant device discovery for lights, switches, fans, covers, climate, vacuum, sensors, locks and media players
+- On/off controls for lights, switches, fans and covers
+- Start, pause and dock commands for supported Home Assistant vacuum entities
+- Set-temperature command for supported Home Assistant climate entities
+- Lock/unlock commands for supported lock entities
 - GitHub Actions debug APK build
 
 ## Still not implemented
-- A reliable always-on "Hey Dude" wake-word engine and foreground microphone service
-- Direct vendor cloud authorization without Home Assistant
-- Dedicated, full-featured controls for LG ThinQ, Sensi and Shark (discovery/status depends on the entities exposed by the configured Home Assistant integrations)
-- Built-in live weather and news panels
-- Calendar/reminders and a complete Echo Show-style widget dashboard
+- Always-on "Hey Dude" wake word. This requires a wake-word engine, its access/configuration key and a foreground microphone service; current voice mode is tap-to-talk.
+- Direct vendor sign-in/API implementations for Smart Life/Tuya, LG ThinQ, Sensi and Shark. These brands must first be added in Home Assistant, and the exact functions depend on the devices and integration support.
+- Full calendar/reminders and the full Echo Show feature set.
 
-## Important setup
-The app runs on the Galaxy Tab S4. Home Assistant is an optional bridge that must run on an always-on computer, NAS or supported host; it is not embedded in the tablet app. Configure each supported vendor integration in Home Assistant, then enter its URL and a long-lived access token in DUDE Settings. The app can discover the entities Home Assistant exposes.
-
-The current voice experience is tap-to-talk. Android background microphone rules and wake-word engine licensing/model requirements mean that "Hey Dude" cannot be honestly claimed as active until that engine and service are integrated and tested on the tablet.
+## Setup
+Set a city in DUDE Settings for weather. Connect Home Assistant URL and long-lived token in Settings; add the supported vendor integrations and devices in Home Assistant first. Home Assistant runs on a separate always-on PC, NAS or supported host; the DUDE app and dashboard run on the Galaxy Tab S4. The tablet alone cannot automatically gain access to private vendor cloud APIs or Alexa-linked devices.
