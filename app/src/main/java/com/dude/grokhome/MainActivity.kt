@@ -244,6 +244,10 @@ class MainActivity : Activity() {
             AssistantBrain.Kind.LIGHT_OFF -> control("light", "turn_off", "Lights off. Saving the planet, one switch at a time.")
             AssistantBrain.Kind.PLUG_ON -> control("switch", "turn_on", "Plug switched on. Electricity, at your service.")
             AssistantBrain.Kind.PLUG_OFF -> control("switch", "turn_off", "Plug switched off. Power nap time.")
+            AssistantBrain.Kind.VACUUM_START -> control("vacuum", "start", "Vacuum started. The floor's days are numbered.")
+            AssistantBrain.Kind.VACUUM_STOP -> control("vacuum", "pause", "Vacuum paused.")
+            AssistantBrain.Kind.VACUUM_DOCK -> control("vacuum", "return_to_base", "Sending the vacuum home.")
+            AssistantBrain.Kind.THERMOSTAT -> speak("Open Discover Devices and select your thermostat to see its available controls.")
             AssistantBrain.Kind.UNKNOWN -> speak("I heard you say, $utterance. I don't understand every kind of conversation yet. Try asking about weather, time, news, or your devices.")
         }
     }
@@ -343,7 +347,7 @@ class MainActivity : Activity() {
     }
 
     private fun control(domain: String, service: String, success: String) {
-        val entity = prefs.getString(if (domain == "light") "ha_light_entity" else "ha_switch_entity", "").orEmpty()
+        val entity = prefs.getString(when (domain) { "light" -> "ha_light_entity"; "vacuum" -> "ha_vacuum_entity"; else -> "ha_switch_entity" }, "").orEmpty()
         if (entity.isBlank()) { speak("I need the $domain entity set up first. Use Discover Devices or settings."); return }
         val base = prefs.getString("ha_url", "").orEmpty()
         val token = loadSecret("ha_token")
@@ -397,13 +401,15 @@ class MainActivity : Activity() {
         val token = field("Home Assistant long-lived access token", "", InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD)
         val light = field("Main light entity ID", prefs.getString("ha_light_entity", "").orEmpty())
         val plug = field("Smart plug entity ID", prefs.getString("ha_switch_entity", "").orEmpty())
+        val vacuum = field("Vacuum entity ID", prefs.getString("ha_vacuum_entity", "").orEmpty())
         box.addView(txt("Weather and headlines use free sources. Home Assistant is optional but required for device control. No paid AI API is configured.", 10f, muted))
         AlertDialog.Builder(this).setTitle("DUDE SETTINGS").setView(ScrollView(this).apply { addView(box) })
             .setPositiveButton("SAVE") { _, _ ->
                 prefs.edit().putString("weather_city", city.text.toString().trim())
                     .putString("ha_url", url.text.toString().trim())
                     .putString("ha_light_entity", light.text.toString().trim())
-                    .putString("ha_switch_entity", plug.text.toString().trim()).apply()
+                    .putString("ha_switch_entity", plug.text.toString().trim())
+                    .putString("ha_vacuum_entity", vacuum.text.toString().trim()).apply()
                 if (token.text.isNotBlank()) saveSecret("ha_token", token.text.toString().trim())
                 loadDashboard(); speak("Settings saved. Look at me, being configurable.")
             }.setNegativeButton("CANCEL", null).show()
