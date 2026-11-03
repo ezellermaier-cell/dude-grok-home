@@ -731,12 +731,26 @@ class MainActivity : Activity() {
         page.addView(label("Everything is saved on this tablet. Choose a section below and follow the short hints.", 12f, muted)
             .apply { setPadding(0, 0, 0, 18) })
 
-        val weather = group("☀  WEATHER & LOCATION", "Choose the city DUDE uses for your home-screen forecast.")
+        val weather = group("☀  WEATHER & LOCATION", "Turn this on to show local weather on the dashboard.")
+        val weatherToggle = Switch(this).apply {
+            text = "Enable weather"
+            setTextColor(Color.WHITE)
+            isChecked = prefs.getBoolean("weather_enabled", true)
+        }
+        weather.addView(weatherToggle)
         val city = field(weather, "Your city or ZIP code", "Example: Teaneck, NJ",
             prefs.getString("weather_city", "").orEmpty())
         helper(weather, "Use a city and state for the most accurate match.")
+        city.visibility = if (weatherToggle.isChecked) View.VISIBLE else View.GONE
+        weatherToggle.setOnCheckedChangeListener { _, enabled -> city.visibility = if (enabled) View.VISIBLE else View.GONE }
 
         val home = group("⌂  SMART HOME CONNECTION", "Connect Home Assistant once to control supported lights, plugs, climate and other devices.")
+        val haToggle = Switch(this).apply {
+            text = "Enable smart-home connection"
+            setTextColor(Color.WHITE)
+            isChecked = prefs.getBoolean("ha_enabled", prefs.getString("ha_url", "").orEmpty().isNotBlank())
+        }
+        home.addView(haToggle)
         val url = field(home, "Home Assistant address", "http://homeassistant.local:8123",
             prefs.getString("ha_url", "").orEmpty())
         val token = field(home, "Access token", "Paste long-lived access token (hidden)",
@@ -748,8 +762,18 @@ class MainActivity : Activity() {
         val vacuum = field(home, "Vacuum entity (optional)", "vacuum.robot",
             prefs.getString("ha_vacuum_entity", "").orEmpty())
         action(home, "DISCOVER MY DEVICES", "Find supported entities automatically after connecting.") { discoverDevices() }
+        val haFields = (2 until home.childCount).map { home.getChildAt(it) }
+        fun showHaFields(enabled: Boolean) { haFields.forEach { it.visibility = if (enabled) View.VISIBLE else View.GONE } }
+        showHaFields(haToggle.isChecked)
+        haToggle.setOnCheckedChangeListener { _, enabled -> showHaFields(enabled) }
 
-        val ai = group("✦  AI BRAIN", "Add your personal Gemini API key to let DUDE answer general questions. Keep this key private.")
+        val ai = group("✦  AI BRAIN", "Turn on Gemini only if you want DUDE to answer general questions with your API key.")
+        val aiToggle = Switch(this).apply {
+            text = "Enable Gemini AI"
+            setTextColor(Color.WHITE)
+            isChecked = prefs.getBoolean("gemini_enabled", loadSecret("gemini_api_key").isNotBlank())
+        }
+        ai.addView(aiToggle)
         val geminiKey = field(ai, "Gemini API key", "Paste key here (leave blank to keep current)", "",
             InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD)
         val connected = loadSecret("gemini_api_key").isNotBlank()
@@ -759,12 +783,26 @@ class MainActivity : Activity() {
             speak("Gemini key cleared from this tablet.")
             showSectionTab("SETTINGS")
         }
+        val aiFields = (2 until ai.childCount).map { ai.getChildAt(it) }
+        fun showAiFields(enabled: Boolean) { aiFields.forEach { it.visibility = if (enabled) View.VISIBLE else View.GONE } }
+        showAiFields(aiToggle.isChecked)
+        aiToggle.setOnCheckedChangeListener { _, enabled -> showAiFields(enabled) }
 
-        val voice = group("◉  VOICE & LISTENING", "Choose how DUDE sounds and start hands-free listening.")
+        val voice = group("◉  VOICE & LISTENING", "Turn on voice features to use Hey Dude and spoken responses.")
+        val voiceToggle = Switch(this).apply {
+            text = "Enable voice assistant"
+            setTextColor(Color.WHITE)
+            isChecked = prefs.getBoolean("voice_enabled", true)
+        }
+        voice.addView(voiceToggle)
         action(voice, "CHOOSE DUDE'S VOICE", "Available voices depend on the voices installed on Android.") { chooseVoice() }
         action(voice, "START LISTENING FOR HEY DUDE", "Microphone permission is required. Android speech recognition powers wake listening.") {
             startVoice(); speak("I'm back. What's up?")
         }
+        val voiceFields = (3 until voice.childCount).map { voice.getChildAt(it) }
+        fun showVoiceFields(enabled: Boolean) { voiceFields.forEach { it.visibility = if (enabled) View.VISIBLE else View.GONE } }
+        showVoiceFields(voiceToggle.isChecked)
+        voiceToggle.setOnCheckedChangeListener { _, enabled -> showVoiceFields(enabled) }
 
         val layout = group("▦  DASHBOARD LAYOUT", "Make the home screen feel like yours.")
         action(layout, "CUSTOMIZE HOME SCREEN", "Reorder sections, hide what you don't use, and save your layout.") { showLayoutEditor(page) }
@@ -779,13 +817,17 @@ class MainActivity : Activity() {
                 speak("The Home Assistant address should start with http or https.")
                 return@button
             }
-            prefs.edit().putString("weather_city", city.text.toString().trim())
-                .putString("ha_url", url.text.toString().trim().trimEnd('/'))
+            prefs.edit().putBoolean("weather_enabled", weatherToggle.isChecked)
+                .putBoolean("ha_enabled", haToggle.isChecked)
+                .putBoolean("gemini_enabled", aiToggle.isChecked)
+                .putBoolean("voice_enabled", voiceToggle.isChecked)
+                .putString("weather_city", city.text.toString().trim())
+                .putString("ha_url", if (haToggle.isChecked) url.text.toString().trim().trimEnd('/') else "")
                 .putString("ha_light_entity", light.text.toString().trim())
                 .putString("ha_switch_entity", plug.text.toString().trim())
                 .putString("ha_vacuum_entity", vacuum.text.toString().trim()).apply()
-            if (token.text.isNotBlank()) saveSecret("ha_token", token.text.toString().trim())
-            if (geminiKey.text.isNotBlank()) saveSecret("gemini_api_key", geminiKey.text.toString().trim())
+            if (haToggle.isChecked && token.text.isNotBlank()) saveSecret("ha_token", token.text.toString().trim())
+            if (aiToggle.isChecked && geminiKey.text.isNotBlank()) saveSecret("gemini_api_key", geminiKey.text.toString().trim())
             loadDashboard()
             showDashboardTab()
             speak("Settings saved. Your home screen is updating.")
