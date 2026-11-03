@@ -150,53 +150,45 @@ class MainActivity : Activity() {
     private lateinit var navBar: LinearLayout
     private var activeSection = "HOME"
 
+    private lateinit var navBar: LinearLayout
+    private lateinit var dashboardWeb: android.webkit.WebView
+    private var activeSection = "HOME"
+
+    private inner class DudeBridge {
+        @android.webkit.JavascriptInterface fun ask(message: String) { runOnUiThread { handle(message) } }
+        @android.webkit.JavascriptInterface fun talk() { runOnUiThread { startVoice(); speak("I'm listening. What's up?") } }
+        @android.webkit.JavascriptInterface fun navigate(section: String) { runOnUiThread { showSectionTab(section.uppercase(Locale.US)) } }
+        @android.webkit.JavascriptInterface fun discover() { runOnUiThread { discoverDevices() } }
+    }
+
     private fun buildUi() {
         val wide = resources.configuration.screenWidthDp >= 600 &&
             resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
-        val root = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(if (wide) 24 else 16, 12, if (wide) 24 else 16, 10)
-            setBackgroundColor(Color.rgb(5, 12, 27))
-        }
-
-        val header = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            setPadding(0, 0, 0, 12)
-        }
-        val brand = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        brand.addView(txt("DUDE", 27f, Color.WHITE, true))
-        brand.addView(txt("HOME OS  /  INTELLIGENCE", 9f, Color.rgb(93, 205, 239), true).apply { letterSpacing = 0.12f })
-        header.addView(brand, LinearLayout.LayoutParams(0, 52, 1f))
-        status = txt("●  SYSTEM ONLINE", 10f, Color.rgb(91, 235, 199), true)
-        header.addView(status)
-        header.addView(button("⚙") { showSectionTab("SETTINGS") }, LinearLayout.LayoutParams(46, 42).apply { leftMargin = 10 })
-        root.addView(header)
-
+        dashboardPage = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(0, 2, 0, 18) }
+        settingsPage = buildSettingsPage()
+        // Keep the existing native pages and service objects initialized; the home experience
+        // is rendered by a responsive, purpose-built WebView interface.
+        buildDashboard(wide)
+        navBar = LinearLayout(this)
         mainScroll = ScrollView(this).apply {
             isFillViewport = true
             isVerticalScrollBarEnabled = false
-            background = shape(Color.rgb(5, 12, 27), Color.TRANSPARENT, 0f)
+            setBackgroundColor(Color.rgb(4, 8, 20))
         }
-        dashboardPage = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(0, 2, 0, 18)
+        dashboardWeb = android.webkit.WebView(this).apply {
+            setBackgroundColor(Color.rgb(4, 8, 20))
+            settings.javaScriptEnabled = true
+            settings.domStorageEnabled = true
+            settings.allowFileAccess = false
+            settings.allowContentAccess = false
+            addJavascriptInterface(DudeBridge(), "Dude")
+            webViewClient = object : android.webkit.WebViewClient() {
+                override fun shouldOverrideUrlLoading(view: android.webkit.WebView?, url: String?): Boolean = true
+            }
+            loadUrl("file:///android_asset/dude_dashboard.html")
         }
-        settingsPage = buildSettingsPage()
-        buildDashboard(wide)
-        mainScroll.addView(dashboardPage)
-        root.addView(mainScroll, LinearLayout.LayoutParams(-1, 0, 1f))
-
-        navBar = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            setPadding(0, 8, 0, 0)
-        }
-        root.addView(navBar, LinearLayout.LayoutParams(-1, 54))
-        setContentView(root)
-        renderNavigation()
-        mainScroll.post { dashboardPage.minimumHeight = mainScroll.height }
-        applySavedDashboardLayout(dashboardFooter)
+        mainScroll.addView(dashboardWeb)
+        setContentView(mainScroll)
     }
 
     private fun card(title: String, subtitle: String = ""): LinearLayout {
@@ -374,20 +366,20 @@ class MainActivity : Activity() {
 
     private fun showSectionTab(section: String) {
         activeSection = section
-        renderNavigation()
+        if (section == "HOME") {
+            mainScroll.removeAllViews()
+            mainScroll.addView(dashboardWeb)
+            return
+        }
         mainScroll.removeAllViews()
         val page: View = when (section) {
-            "HOME" -> {
-                applySavedDashboardLayout(dashboardFooter)
-                dashboardPage
-            }
             "SETTINGS" -> settingsPage
             "DEVICES" -> buildDevicesPage()
             "ROUTINES" -> buildRoutinesPage()
             "ASSISTANT" -> buildAssistantPage()
             "NEWS" -> buildNewsPage()
             "WEATHER" -> buildWeatherPage()
-            else -> dashboardPage
+            else -> dashboardWeb
         }
         mainScroll.addView(page)
     }
@@ -644,13 +636,17 @@ class MainActivity : Activity() {
 
     private fun tick() {
         if (!::clock.isInitialized) return
-        clock.text = SimpleDateFormat("h:mm", Locale.getDefault()).format(Date())
-        date.text = SimpleDateFormat("EEEE  •  MMMM d", Locale.getDefault()).format(Date()).uppercase(Locale.getDefault())
+        val timeText = SimpleDateFormat("h:mm", Locale.getDefault()).format(Date())
+        val dateText = SimpleDateFormat("EEEE  •  MMMM d", Locale.getDefault()).format(Date()).uppercase(Locale.getDefault())
+        clock.text = timeText
+        date.text = dateText
+        if (::dashboardWeb.isInitialized) dashboardWeb.evaluateJavascript("window.setClock && window.setClock(" + org.json.JSONObject.quote(timeText) + "," + org.json.JSONObject.quote(dateText) + ")", null)
     }
 
     private fun setState(value: String) {
-        status.text = "● $value"
-        orb.text = if (value.contains("THINK")) "◌" else if (value.contains("LISTEN")) "◉" else "✦"
+        if (::status.isInitialized) status.text = "● $value"
+        if (::orb.isInitialized) orb.text = if (value.contains("THINK")) "◌" else if (value.contains("LISTEN")) "◉" else "✦"
+        if (::dashboardWeb.isInitialized) dashboardWeb.evaluateJavascript("window.setDudeState && window.setDudeState(" + org.json.JSONObject.quote(value) + ")", null)
     }
 
     private fun speak(message: String) {
