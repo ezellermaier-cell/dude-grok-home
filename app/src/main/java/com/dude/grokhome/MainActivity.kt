@@ -49,6 +49,7 @@ class MainActivity : Activity() {
     private lateinit var dashboardPage: LinearLayout
     private lateinit var settingsPage: LinearLayout
     private val dashboardSections = linkedMapOf<String, View>()
+    private var dashboardFooter: View? = null
     private var ttsReady = false
     private var receiverRegistered = false
     private var weatherText = ""
@@ -256,6 +257,7 @@ class MainActivity : Activity() {
         val footer = label("TECH IT WITH EZ  •  DUDE HOME INTELLIGENCE", 8f, muted, true).apply {
             gravity = Gravity.CENTER; setPadding(0, 5, 0, 5); letterSpacing = 0.12f
         }
+        dashboardFooter = footer
         scroll.addView(page)
         root.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
         settingsPage = buildSettingsPage()
@@ -327,6 +329,7 @@ class MainActivity : Activity() {
     }
 
     private fun showDashboardTab() {
+        applySavedDashboardLayout(dashboardFooter)
         mainScroll.removeAllViews()
         mainScroll.addView(dashboardPage)
         mainScroll.post { dashboardPage.minimumHeight = mainScroll.height }
