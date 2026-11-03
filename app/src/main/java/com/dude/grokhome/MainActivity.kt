@@ -2,6 +2,7 @@ package com.dude.grokhome
 
 import android.Manifest
 import android.app.Activity
+import android.app.AlertDialog
 import android.content.Intent
 import android.content.SharedPreferences
 import android.security.keystore.KeyGenParameterSpec
@@ -19,6 +20,7 @@ import android.speech.RecognizerIntent
 import android.speech.tts.TextToSpeech
 import android.view.Gravity
 import android.view.View
+import android.view.WindowManager
 import android.widget.*
 import org.json.JSONArray
 import org.json.JSONObject
@@ -43,11 +45,12 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
         super.onCreate(savedInstanceState)
         window.decorView.systemUiVisibility =
             (View.SYSTEM_UI_FLAG_FULLSCREEN or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-                    or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY or View.SYSTEM_UI_FLAG_KEEP_SCREEN_ON)
+                    or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY)
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         prefs = getSharedPreferences("dude_private", MODE_PRIVATE)
         tts = TextToSpeech(this, this)
         buildUi()
-        if (loadApiKey().isBlank()) showApiKeySetup()
+        if (loadApiKey().isBlank()) settingsDialog()
     }
 
     private fun buildUi() {
