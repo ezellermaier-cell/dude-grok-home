@@ -15,7 +15,7 @@ class GeminiClient(private val apiKey: String) {
     fun reply(question: String, history: List<Turn>): String {
         require(apiKey.isNotBlank()) { "Add your Gemini API key in DUDE Settings." }
         val contents = JSONArray()
-        history.takeLast(12).forEach { turn ->
+        history.takeLast(4).forEach { turn ->
             contents.put(JSONObject()
                 .put("role", turn.role)
                 .put("parts", JSONArray().put(JSONObject().put("text", turn.text))))
@@ -27,16 +27,14 @@ class GeminiClient(private val apiKey: String) {
         val body = JSONObject()
             .put("systemInstruction", JSONObject().put("parts", JSONArray().put(JSONObject().put(
                 "text",
-                "You are DUDE, a friendly, witty, practical voice assistant living on a Samsung tablet. " +
-                    "Answer general questions clearly and accurately. Be concise when speaking aloud, " +
-                    "use a relaxed clever personality without being rude, and admit uncertainty. " +
-                    "Do not claim to have controlled smart-home devices or accessed live information unless " +
-                    "the app explicitly confirms it. Never invent current weather, news, or device states."
+                "You are DUDE, a friendly, witty voice assistant. Answer directly in a few sentences. " +
+                    "Avoid long explanations unless asked. Admit uncertainty. Never claim to control devices " +
+                    "or know live facts unless confirmed by the app."
             ))))
             .put("contents", contents)
-            .put("generationConfig", JSONObject().put("maxOutputTokens", 700))
+            .put("generationConfig", JSONObject().put("maxOutputTokens", 300))
 
-        val connection = (URL("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent")
+        val connection = (URL("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent")
             .openConnection() as HttpURLConnection).apply {
             requestMethod = "POST"
             connectTimeout = 15000
