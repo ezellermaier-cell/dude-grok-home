@@ -150,6 +150,8 @@ class MainActivity : Activity() {
     private lateinit var navBar: LinearLayout
     private lateinit var dashboardWeb: android.webkit.WebView
     private var activeSection = "HOME"
+    private var articlePage: View? = null
+    private var articleReturnSection = "NEWS"
 
     private inner class DudeBridge {
         @android.webkit.JavascriptInterface fun ask(message: String) { runOnUiThread { handle(message) } }
@@ -367,6 +369,7 @@ class MainActivity : Activity() {
 
     private fun showSectionTab(section: String) {
         activeSection = section
+        articlePage = null
         if (section == "HOME") {
             mainScroll.removeAllViews()
             mainScroll.addView(dashboardWeb)
@@ -394,7 +397,11 @@ class MainActivity : Activity() {
             setBackgroundColor(Color.rgb(5, 12, 27))
             clipToPadding = false
         }
-        page.addView(txt(title, 27f, Color.WHITE, true).apply { letterSpacing = 0.01f })
+        val heading = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+        heading.addView(txt(title, 27f, Color.WHITE, true).apply { letterSpacing = 0.01f },
+            LinearLayout.LayoutParams(0, -2, 1f))
+        heading.addView(button("← BACK") { showSectionTab("HOME") }, LinearLayout.LayoutParams(94, 40))
+        page.addView(heading)
         page.addView(txt(description, 12f, Color.rgb(151, 177, 207)).apply { setPadding(0, 6, 0, 20) })
         return page
     }
@@ -519,13 +526,48 @@ class MainActivity : Activity() {
                     if (bitmap != null) runOnUiThread { image.setImageBitmap(bitmap) }
                 } catch (_: Exception) { }
             }
-            row.addView(button("READ HEADLINE") { speak(story.title) }, LinearLayout.LayoutParams(-1, 44).apply { topMargin = 8 })
+            row.addView(button("READ ARTICLE  ↗") { openNewsArticle(story) }, LinearLayout.LayoutParams(-1, 44).apply { topMargin = 8 })
             list.addView(row, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = 12 })
         }
         page.addView(list)
         page.addView(button("REFRESH HEADLINES") { loadDashboard(); showSectionTab("NEWS") },
             LinearLayout.LayoutParams(-1, 44).apply { topMargin = 10 })
         return page
+    }
+
+    private fun openNewsArticle(story: DashboardData.NewsItem) {
+        if (story.link.isBlank()) { speak("I don't have an article link for that headline."); return }
+        articleReturnSection = activeSection
+        val page = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(Color.rgb(5, 12, 27)) }
+        val bar = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(14, 8, 14, 8) }
+        bar.addView(button("← BACK TO NEWS") { showSectionTab(articleReturnSection) }, LinearLayout.LayoutParams(150, 44))
+        bar.addView(txt(story.source, 10f, muted, true), LinearLayout.LayoutParams(0, -2, 1f))
+        page.addView(bar)
+        page.addView(txt(story.title, 20f, Color.WHITE, true).apply { setPadding(18, 8, 18, 14) })
+        val reader = android.webkit.WebView(this).apply {
+            setBackgroundColor(Color.WHITE)
+            settings.javaScriptEnabled = true
+            settings.domStorageEnabled = true
+            settings.loadsImagesAutomatically = true
+            webViewClient = object : android.webkit.WebViewClient() {
+                override fun shouldOverrideUrlLoading(view: android.webkit.WebView?, request: android.webkit.WebResourceRequest?): Boolean = false
+            }
+            loadUrl(story.link)
+        }
+        page.addView(reader, LinearLayout.LayoutParams(-1, 0, 1f))
+        articlePage = page
+        mainScroll.removeAllViews()
+        mainScroll.addView(page, android.view.ViewGroup.LayoutParams(-1, -1))
+        mainScroll.scrollTo(0, 0)
+    }
+
+    @Suppress("DEPRECATION")
+    override fun onBackPressed() {
+        if (articlePage != null && activeSection != "HOME") {
+            articlePage = null
+            showSectionTab(articleReturnSection)
+        } else if (activeSection != "HOME") showSectionTab("HOME")
+        else super.onBackPressed()
     }
 
     private fun buildWeatherPage(): LinearLayout {
@@ -857,7 +899,7 @@ class MainActivity : Activity() {
             val tile = LinearLayout(this).apply {
                 orientation = LinearLayout.VERTICAL; setPadding(6, 6, 6, 6)
                 background = shape(Color.rgb(5, 20, 40), Color.rgb(35, 80, 120), 13f)
-                setOnClickListener { speak("Here's a headline: " + story.title) }
+                setOnClickListener { openNewsArticle(story) }
             }
             val image = ImageView(this).apply { scaleType = ImageView.ScaleType.CENTER_CROP; background = shape(Color.rgb(20, 57, 86)) }
             tile.addView(image, LinearLayout.LayoutParams(-1, 62))
