@@ -34,6 +34,10 @@ class HomeAssistantClient(private val baseUrl: String, private val token: String
     fun check(): Boolean = request("/api/").contains("API")
     fun states(): String = request("/api/states")
     fun callService(domain: String, service: String, entityId: String): String =
-        request("/api/services/$domain/$service", "POST",
-            JSONObject().put("entity_id", entityId))
+        callServiceWithData(domain, service, entityId, JSONObject())
+
+    fun callServiceWithData(domain: String, service: String, entityId: String, extra: JSONObject): String {
+        extra.put("entity_id", entityId)
+        return request("/api/services/$domain/$service", "POST", extra)
+    }
 }
