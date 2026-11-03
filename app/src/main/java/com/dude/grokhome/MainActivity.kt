@@ -179,7 +179,7 @@ class MainActivity : Activity() {
             setBackgroundColor(Color.rgb(4, 8, 20))
             settings.javaScriptEnabled = true
             settings.domStorageEnabled = true
-            settings.allowFileAccess = false
+            settings.allowFileAccess = true
             settings.allowContentAccess = false
             addJavascriptInterface(DudeBridge(), "Dude")
             webViewClient = object : android.webkit.WebViewClient() {
