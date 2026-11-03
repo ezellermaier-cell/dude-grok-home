@@ -1,64 +1,108 @@
 package com.dude.grokhome
 
+import android.util.Xml
 import org.json.JSONObject
+import org.xmlpull.v1.XmlPullParser
 import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
 
+/** Public, key-free dashboard feeds. Network calls run on the app IO executor. */
 object DashboardData {
-    fun weather(city: String): String {
-        return try {
-            val query = URLEncoder.encode(city, "UTF-8")
-            val geoText = URL("https://geocoding-api.open-meteo.com/v1/search?name=$query&count=1&language=en&format=json").readText()
-            val place = JSONObject(geoText).optJSONArray("results")?.optJSONObject(0) ?: return "Weather: city not found"
-            val lat = place.getDouble("latitude")
-            val lon = place.getDouble("longitude")
-            val text = URL("https://api.open-meteo.com/v1/forecast?latitude=$lat&longitude=$lon&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code&temperature_unit=fahrenheit").readText()
-            val now = JSONObject(text).getJSONObject("current")
-            val code = now.optInt("weather_code")
-            val sky = when (code) { 0 -> "Clear"; 1, 2 -> "Partly cloudy"; 3 -> "Cloudy"; 45, 48 -> "Fog"; 51, 53, 55 -> "Drizzle"; 61, 63, 65, 80, 81, 82 -> "Rain"; 71, 73, 75, 77, 85, 86 -> "Snow"; 95, 96, 99 -> "Thunderstorms"; else -> "Current conditions" }
-            "${place.optString("name", city)}\n${now.optDouble("temperature_2m").toInt()}°F • $sky\nFeels ${now.optDouble("apparent_temperature").toInt()}° • Humidity ${now.optInt("relative_humidity_2m")}%"
-        } catch (_: Exception) { "Weather unavailable — check internet" }
+    data class NewsItem(val title: String, val imageUrl: String, val source: String, val link: String = "")
+
+    private fun get(url: String, timeout: Int = 9000): String {
+        val c = URL(url).openConnection() as HttpURLConnection
+        try {
+            c.connectTimeout = timeout
+            c.readTimeout = timeout
+            c.instanceFollowRedirects = true
+            c.setRequestProperty("User-Agent", "DUDE-Home-Dashboard/2.0 Android")
+            c.setRequestProperty("Accept", "application/json, application/rss+xml, application/xml, text/xml, text/html")
+            return c.inputStream.bufferedReader().use { it.readText() }
+        } finally { c.disconnect() }
     }
 
-
-    data class NewsItem(val title: String, val imageUrl: String, val source: String)
+    fun weather(city: String): String {
+        if (city.isBlank()) return ""
+        return try {
+            val q = URLEncoder.encode(city.trim(), "UTF-8")
+            val geo = JSONObject(get("https://geocoding-api.open-meteo.com/v1/search?name=$q&count=1&language=en&format=json"))
+            val place = geo.optJSONArray("results")?.optJSONObject(0) ?: return "Weather: city not found"
+            val lat = place.getDouble("latitude")
+            val lon = place.getDouble("longitude")
+            val data = JSONObject(get("https://api.open-meteo.com/v1/forecast?latitude=$lat&longitude=$lon&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone=auto"))
+            val now = data.getJSONObject("current")
+            val daily = data.optJSONObject("daily")
+            val condition = when (now.optInt("weather_code")) {
+                0 -> "Clear sky"; 1 -> "Mostly clear"; 2 -> "Partly cloudy"; 3 -> "Overcast"
+                45, 48 -> "Fog"; 51, 53, 55 -> "Drizzle"; 56, 57 -> "Freezing drizzle"
+                61, 63, 65, 80, 81, 82 -> "Rain"; 66, 67 -> "Freezing rain"
+                71, 73, 75, 77, 85, 86 -> "Snow"; 95, 96, 99 -> "Thunderstorms"
+                else -> "Current conditions"
+            }
+            val high = daily?.optJSONArray("temperature_2m_max")?.optDouble(0)?.toInt()
+            val low = daily?.optJSONArray("temperature_2m_min")?.optDouble(0)?.toInt()
+            val rain = daily?.optJSONArray("precipitation_probability_max")?.optInt(0)
+            buildString {
+                append(place.optString("name", city)).append("\n")
+                append(now.optDouble("temperature_2m").toInt()).append("°F • ").append(condition).append("\n")
+                append("Feels ").append(now.optDouble("apparent_temperature").toInt()).append("°F")
+                append(" • Humidity ").append(now.optInt("relative_humidity_2m")).append("%")
+                append(" • Wind ").append(now.optDouble("wind_speed_10m").toInt()).append(" mph")
+                if (high != null && low != null) append("\nToday: high ").append(high).append("° / low ").append(low).append("°")
+                if (rain != null) append(" • Rain chance ").append(rain).append("%")
+            }
+        } catch (_: Exception) { "Weather unavailable — check internet or city" }
+    }
 
     fun newsItems(): List<NewsItem> {
         return try {
-            val connection = URL("https://news.google.com/rss?hl=en-US&gl=US&ceid=US:en").openConnection() as HttpURLConnection
-            connection.connectTimeout = 10000
-            connection.readTimeout = 12000
-            connection.setRequestProperty("User-Agent", "DUDE-Home-Dashboard/1.0")
-            val xml = connection.inputStream.bufferedReader().use { it.readText() }
-            connection.disconnect()
-            Regex("<item>(.*?)</item>", setOf(RegexOption.DOT_MATCHES_ALL)).findAll(xml).take(6).mapNotNull { match ->
-                val item = match.groupValues[1]
-                fun tag(name: String): String = Regex("<$name[^>]*>(?:<!\\[CDATA\\[(.*?)]]>|(.*?))</$name>", setOf(RegexOption.DOT_MATCHES_ALL))
-                    .find(item)?.let { it.groupValues[1].ifBlank { it.groupValues[2] } }.orEmpty()
-                val title = tag("title").replace("&amp;", "&").replace("&quot;", "\\\"").replace("&#39;", "'").replace("&apos;", "'").trim()
-                if (title.isBlank()) return@mapNotNull null
-                val image = Regex("<(?:media:content|media:thumbnail|enclosure)[^>]*(?:url|href)=['\\\"]([^'\\\"]+)['\\\"][^>]*/?>")
-                    .find(item)?.groupValues?.get(1).orEmpty()
-                val source = Regex("<source[^>]*>(.*?)</source>").find(item)?.groupValues?.get(1).orEmpty()
-                val link = Regex("<link>(.*?)</link>").find(item)?.groupValues?.get(1)?.trim().orEmpty()
-                val preview = if (image.isNotBlank()) image else articlePreviewImage(link)
-                NewsItem(title, preview, source)
-            }.toList()
+            val parser = Xml.newPullParser()
+            parser.setInput(get("https://news.google.com/rss?hl=en-US&gl=US&ceid=US:en", 12000).reader())
+            val result = ArrayList<NewsItem>()
+            var event = parser.eventType
+            var inside = false
+            var tag = ""
+            var title = ""
+            var source = ""
+            var link = ""
+            var image = ""
+            while (event != XmlPullParser.END_DOCUMENT && result.size < 8) {
+                when (event) {
+                    XmlPullParser.START_TAG -> {
+                        tag = parser.name
+                        if (tag == "item") { inside = true; title = ""; source = ""; link = ""; image = "" }
+                        if (inside && (tag == "media:content" || tag == "media:thumbnail" || tag == "enclosure")) {
+                            image = parser.getAttributeValue(null, "url") ?: parser.getAttributeValue(null, "href") ?: image
+                        }
+                    }
+                    XmlPullParser.TEXT, XmlPullParser.CDSECT -> if (inside) {
+                        val value = parser.text.orEmpty().trim()
+                        when (tag) {
+                            "title" -> title += value
+                            "source" -> source += value
+                            "link" -> link += value
+                        }
+                    }
+                    XmlPullParser.END_TAG -> if (parser.name == "item") {
+                        if (title.isNotBlank()) {
+                            val clean = title.substringBefore(" - ").trim()
+                            result.add(NewsItem(clean, if (image.isNotBlank()) image else articleImage(link), source.ifBlank { "Google News" }, link))
+                        }
+                        inside = false
+                    }
+                }
+                event = parser.next()
+            }
+            result
         } catch (_: Exception) { emptyList() }
     }
 
-    
-    private fun articlePreviewImage(link: String): String {
+    private fun articleImage(link: String): String {
         if (link.isBlank()) return ""
         return try {
-            val connection = URL(link).openConnection() as HttpURLConnection
-            connection.connectTimeout = 4500
-            connection.readTimeout = 5000
-            connection.instanceFollowRedirects = true
-            connection.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 Chrome/120 Safari/537.36")
-            val html = connection.inputStream.bufferedReader().use { it.readText().take(400000) }
-            connection.disconnect()
+            val html = get(link, 5000).take(350000)
             val patterns = listOf(
                 Regex("<meta[^>]+property=['\\\"]og:image['\\\"][^>]+content=['\\\"]([^'\\\"]+)['\\\"]", RegexOption.IGNORE_CASE),
                 Regex("<meta[^>]+content=['\\\"]([^'\\\"]+)['\\\"][^>]+property=['\\\"]og:image['\\\"]", RegexOption.IGNORE_CASE),
@@ -66,28 +110,5 @@ object DashboardData {
             )
             patterns.firstNotNullOfOrNull { it.find(html)?.groupValues?.get(1) }.orEmpty()
         } catch (_: Exception) { "" }
-    }
-
-    fun headlines(): String {
-        return try {
-            val c = URL("https://news.google.com/rss?hl=en-US&gl=US&ceid=US:en").openConnection() as HttpURLConnection
-            c.connectTimeout = 10000
-            c.readTimeout = 12000
-            c.setRequestProperty("User-Agent", "DUDE-Home-Dashboard/1.0")
-            val xml = c.inputStream.bufferedReader().use { it.readText() }
-            c.disconnect()
-            val items = Regex("<item>(.*?)</item>", setOf(RegexOption.DOT_MATCHES_ALL))
-                .findAll(xml).take(5).mapNotNull { match ->
-                    val item = match.groupValues[1]
-                    val rawTitle = Regex("<title>(?:<!\\[CDATA\\[(.*?)]]>|(.*?))</title>", setOf(RegexOption.DOT_MATCHES_ALL))
-                        .find(item)?.let { it.groupValues[1].ifBlank { it.groupValues[2] } } ?: return@mapNotNull null
-                    rawTitle.replace("&amp;", "&").replace("&quot;", "'")
-                        .replace("&#39;", "'").replace("&apos;", "'")
-                        .replace("&lt;", "<").replace("&gt;", ">").trim()
-                        .takeIf { it.isNotBlank() }
-                }.toList()
-            if (items.isEmpty()) "Google News headlines unavailable" else
-                "GLOBAL FEED  /  GOOGLE NEWS\\n" + items.mapIndexed { i, title -> "${i + 1}   $title" }.joinToString("\\n")
-        } catch (_: Exception) { "Google News unavailable — check internet" }
     }
 }
