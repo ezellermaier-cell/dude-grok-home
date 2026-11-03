@@ -26,11 +26,11 @@ import java.util.concurrent.Executors
 
 /** DUDE 2.0: completely rebuilt native dashboard and conversation layer. */
 class MainActivity : Activity() {
-    private val navy = Color.rgb(5, 12, 28)
-    private val panel = Color.rgb(13, 27, 49)
-    private val cyan = Color.rgb(39, 170, 245)
-    private val mint = Color.rgb(53, 211, 190)
-    private val muted = Color.rgb(155, 184, 211)
+    private val navy = Color.rgb(10, 18, 32)
+    private val panel = Color.rgb(20, 32, 50)
+    private val cyan = Color.rgb(74, 163, 255)
+    private val mint = Color.rgb(69, 199, 176)
+    private val muted = Color.rgb(157, 174, 195)
     private val io = Executors.newFixedThreadPool(4)
     private val main = Handler(Looper.getMainLooper())
     private val brain = AssistantBrain()
@@ -117,8 +117,8 @@ class MainActivity : Activity() {
         }
 
     private fun button(value: String, action: () -> Unit) = Button(this).apply {
-        text = value; textSize = 11f; isAllCaps = false; setTextColor(Color.WHITE)
-        background = grad(Color.rgb(19, 112, 161), Color.rgb(12, 62, 111), cyan, 15f)
+        text = value; textSize = 11f; isAllCaps = false; setTextColor(Color.WHITE); minHeight = 42; minimumHeight = 42; elevation = 0f; stateListAnimator = null; letterSpacing = 0.01f; setPadding(14, 0, 14, 0)
+        background = grad(Color.rgb(35, 105, 177), Color.rgb(35, 105, 177), Color.rgb(62, 132, 198), 10f)
         setOnClickListener { action() }
     }
 
@@ -131,24 +131,24 @@ class MainActivity : Activity() {
             orientation = LinearLayout.VERTICAL
             setPadding(if (wide) 22 else 14, 10, if (wide) 22 else 14, 10)
             background = GradientDrawable(GradientDrawable.Orientation.TL_BR,
-                intArrayOf(Color.rgb(5, 12, 28), Color.rgb(8, 24, 46), Color.rgb(10, 18, 37)))
+                intArrayOf(Color.rgb(10, 18, 32), Color.rgb(13, 24, 41), Color.rgb(15, 28, 46)))
         }
         fun label(text: String, size: Float, color: Int = Color.WHITE, bold: Boolean = false) =
             txt(text, size, color, bold)
         fun panel(title: String, accent: Int = cyan): LinearLayout =
             LinearLayout(this).apply {
                 orientation = LinearLayout.VERTICAL
-                setPadding(14, 12, 14, 12)
-                background = grad(Color.rgb(15, 35, 61), Color.rgb(9, 22, 42), Color.rgb(36, 104, 157), 18f)
+                setPadding(16, 14, 16, 14)
+                background = shape(Color.rgb(20, 32, 50), Color.rgb(48, 67, 91), 14f)
                 addView(label(title, 11f, accent, true).apply { letterSpacing = 0.08f })
             }
 
         val header = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
         val brand = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         brand.addView(label("DUDE", if (wide) 30f else 25f, cyan, true).apply {
-            letterSpacing = 0.2f; setShadowLayer(16f, 0f, 0f, cyan)
+            letterSpacing = 0.2f; setShadowLayer(0f, 0f, 0f, Color.TRANSPARENT)
         })
-        brand.addView(label("SMART HOME  •  PERSONAL HOME INTELLIGENCE", 8f, muted, true).apply { letterSpacing = 0.12f })
+        brand.addView(label("PERSONAL HOME DASHBOARD", 9f, muted, true).apply { letterSpacing = 0.12f })
         header.addView(brand, LinearLayout.LayoutParams(0, 54, 1f))
         status = label("● READY", 10f, mint, true)
         header.addView(status)
@@ -168,34 +168,34 @@ class MainActivity : Activity() {
             orientation = LinearLayout.VERTICAL
         }
         val timeCard = panel("LOCAL TIME  /  YOUR DAY", cyan)
-        clock = label("--:--", if (wide) 62f else 58f, Color.WHITE, true).apply {
-            setShadowLayer(22f, 0f, 0f, cyan)
+        clock = label("--:--", if (wide) 52f else 48f, Color.WHITE, true).apply {
+            setShadowLayer(0f, 0f, 0f, Color.TRANSPARENT)
         }
         date = label("LOADING", 12f, muted, true)
         timeCard.addView(clock)
         timeCard.addView(date)
-        timeCard.addView(label("GOOD VIBRATIONS.  •  DUDE IS ONLINE", 8f, mint, true).apply { setPadding(0, 7, 0, 0) })
-        leftColumn.addView(timeCard, LinearLayout.LayoutParams(-1, 0, 1f).apply { bottomMargin = 10 })
+        timeCard.addView(label("YOUR ASSISTANT IS READY", 9f, mint, true).apply { setPadding(0, 7, 0, 0) })
+        leftColumn.addView(timeCard, LinearLayout.LayoutParams(-1, 0, 1.05f).apply { bottomMargin = 10 })
 
         val wx = panel("◈  WEATHER / ATMOSPHERE", mint)
         weatherTitle = label("SET YOUR CITY", 19f, Color.WHITE, true)
         weatherBody = label("Your local forecast will appear here.", 12f, muted)
         wx.addView(weatherTitle)
         wx.addView(weatherBody)
-        leftColumn.addView(wx, LinearLayout.LayoutParams(-1, 0, 1f))
+        leftColumn.addView(wx, LinearLayout.LayoutParams(-1, 0, 0.95f))
 
         val coreCard = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
             setPadding(14, 14, 14, 14)
-            background = grad(Color.rgb(9, 39, 78), Color.rgb(8, 13, 38), Color.rgb(66, 186, 255), 28f)
+            background = shape(Color.rgb(22, 39, 61), Color.rgb(65, 105, 145), 16f)
         }
-        coreCard.addView(label("HEY DUDE", 10f, mint, true).apply { letterSpacing = 0.22f })
-        orb = label("◉", if (wide) 100f else 76f, cyan, true).apply {
-            gravity = Gravity.CENTER; setShadowLayer(32f, 0f, 0f, cyan)
+        coreCard.addView(label("VOICE ASSISTANT", 10f, mint, true).apply { letterSpacing = 0.22f })
+        orb = label("●", if (wide) 76f else 64f, cyan, true).apply {
+            gravity = Gravity.CENTER; setShadowLayer(0f, 0f, 0f, Color.TRANSPARENT)
         }
         coreCard.addView(orb, LinearLayout.LayoutParams(-1, 0, 1f))
-        coreCard.addView(label("DUDE CORE", 18f, Color.WHITE, true).apply { gravity = Gravity.CENTER })
+        coreCard.addView(label("DUDE ASSISTANT", 16f, Color.WHITE, true).apply { gravity = Gravity.CENTER })
         coreCard.addView(label("I'm listening. What's up?", 11f, muted).apply { gravity = Gravity.CENTER; setPadding(0, 4, 0, 12) })
         coreCard.addView(button("🎙  TALK TO DUDE") { startVoice(); speak("Yo. I'm listening. What's up?") },
             LinearLayout.LayoutParams(-1, 48))
@@ -209,7 +209,7 @@ class MainActivity : Activity() {
             top.addView(leftColumn, LinearLayout.LayoutParams(0, -1, 1.05f).apply { rightMargin = 10 })
             top.addView(coreCard, LinearLayout.LayoutParams(0, -1, 1.05f).apply { rightMargin = 10 })
             top.addView(news, LinearLayout.LayoutParams(0, -1, 1.1f))
-            page.addView(top, LinearLayout.LayoutParams(-1, 0, 1f).apply { bottomMargin = 12 })
+            page.addView(top, LinearLayout.LayoutParams(-1, if (wide) 330 else 300).apply { bottomMargin = 14 })
         } else {
             leftColumn.layoutParams = LinearLayout.LayoutParams(-1, 300).apply { bottomMargin = 10 }
             top.addView(leftColumn)
@@ -228,7 +228,7 @@ class MainActivity : Activity() {
         ask = EditText(this).apply {
             hint = "Ask DUDE anything…"; setHintTextColor(muted); setTextColor(Color.WHITE); textSize = 16f
             setSingleLine(true); inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
-            background = shape(Color.rgb(3, 11, 27), Color.rgb(47, 118, 166), 14f); setPadding(13, 0, 13, 0)
+            background = shape(Color.rgb(11, 21, 36), Color.rgb(54, 76, 101), 10f); setPadding(13, 0, 13, 0)
         }
         askRow.addView(ask, LinearLayout.LayoutParams(0, 48, 1f).apply { rightMargin = 8 })
         askRow.addView(button("SEND  ↗") {
@@ -240,14 +240,14 @@ class MainActivity : Activity() {
 
         val home = panel("⌂  SMART HOME  /  YOUR CONNECTED DEVICES", mint)
         val homeHead = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
-        homeHead.addView(label("CONTROL YOUR HOME", 9f, muted, true), LinearLayout.LayoutParams(0, 28, 1f))
+        homeHead.addView(label("DEVICE OVERVIEW", 10f, muted, true), LinearLayout.LayoutParams(0, 28, 1f))
         homeHead.addView(button("VIEW ALL DEVICES  →") { discoverDevices() }, LinearLayout.LayoutParams(154, 40))
         home.addView(homeHead)
         val tiles = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         listOf("💡\nLIGHTS", "❄\nCLIMATE", "▤\nLAUNDRY", "◎\nVACUUM").forEachIndexed { index, name ->
             tiles.addView(label(name, 10f, if (index == 0) cyan else muted, true).apply {
                 gravity = Gravity.CENTER
-                background = grad(Color.rgb(13, 43, 75), Color.rgb(5, 18, 39), Color.rgb(37, 105, 157), 15f)
+                background = shape(Color.rgb(27, 43, 63), Color.rgb(55, 77, 103), 11f)
                 setPadding(3, 8, 3, 8); setOnClickListener { discoverDevices() }
             }, LinearLayout.LayoutParams(0, if (wide) 66 else 72, 1f).apply { setMargins(3, 3, 3, 3) })
         }
