@@ -245,9 +245,9 @@ class MainActivity : Activity() {
 
         val assistantChannel = card("ASSISTANT ACTIVITY", "VOICE + TEXT")
         response = txt("DUDE is ready. Ask about the weather, time, headlines, or connected devices.", 13f, Color.rgb(47, 67, 91))
-        assistantChannel.addView(response)
+        responseViews.add(response)\n        assistantChannel.addView(response)
         val askRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
-        ask = EditText(this).apply {
+        val dashboardAsk = EditText(this).apply {
             hint = "Type a command…"
             setHintTextColor(Color.rgb(140, 155, 174))
             setTextColor(Color.rgb(29, 48, 70))
@@ -413,7 +413,7 @@ class MainActivity : Activity() {
         box.addView(assistantOrb, LinearLayout.LayoutParams(-1, 112))
         val assistantResponse = txt(response.text.toString(), 13f, Color.rgb(47, 67, 91))
         box.addView(assistantResponse, LinearLayout.LayoutParams(-1, -2))
-        response = assistantResponse
+        responseViews.add(assistantResponse)\n        response = assistantResponse
         box.addView(button("START LISTENING") { startVoice(); speak("I'm listening. What's up?") },
             LinearLayout.LayoutParams(-1, 46).apply { topMargin = 12 })
         val inputRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
@@ -590,7 +590,7 @@ class MainActivity : Activity() {
     }
 
     private fun speak(message: String) {
-        response.text = message
+        responseViews.forEach { it.text = message }\n        response.text = message
         setState("READY")
         if (ttsReady) {
             tts.setSpeechRate(0.94f)
