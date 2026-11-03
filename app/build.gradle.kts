@@ -10,9 +10,11 @@ android {
     defaultConfig {
         applicationId = "com.dude.grokhome"
         minSdk = 29
-        targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0"
+        // Keep the app compatible with Android 10 and avoid newer runtime-only
+        // notification/foreground-service requirements on the Tab S4.
+        targetSdk = 29
+        versionCode = 2
+        versionName = "2.0.0"
     }
 
     compileOptions {
@@ -20,7 +22,5 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    kotlinOptions {
-        jvmTarget = "17"
-    }
+    kotlinOptions { jvmTarget = "17" }
 }
