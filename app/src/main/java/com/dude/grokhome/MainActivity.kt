@@ -53,7 +53,7 @@ class MainActivity : Activity() {
     private var ttsReady = false
     private var receiverRegistered = false
     private var weatherText = ""
-    private var stories: List<DashboardData.NewsItem> = emptyList()
+    private var stories: List<DashboardData.NewsItem> = emptyList()\n    private val responseViews = mutableListOf<TextView>()
 
     private val voiceReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -226,7 +226,7 @@ class MainActivity : Activity() {
             LinearLayout.LayoutParams(-1, 44).apply { topMargin = 12 })
 
         val news = card("TOP STORIES", "LATEST HEADLINES")
-        newsRow = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        newsRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         news.addView(newsRow, LinearLayout.LayoutParams(-1, 0, 1f))
         news.addView(button("OPEN NEWS") { showSectionTab("NEWS") }, LinearLayout.LayoutParams(-1, 40).apply { topMargin = 8 })
 
