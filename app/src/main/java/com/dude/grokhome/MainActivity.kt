@@ -735,6 +735,25 @@ class MainActivity : Activity() {
                 }
                 stories = n
                 renderNews()
+                if (::dashboardWeb.isInitialized) {
+                    val parts = w.split("\\n").filter { it.isNotBlank() }
+                    val cityName = parts.firstOrNull() ?: if (city.isBlank()) "SET YOUR CITY IN SETTINGS" else city
+                    val detail = parts.drop(1).joinToString(" · ").ifBlank { "Add a city in Settings for local conditions." }
+                    val temp = Regex("-?[0-9]+°F").find(detail)?.value ?: "--°"
+                    val icon = when {
+                        detail.contains("rain", true) -> "🌧"
+                        detail.contains("snow", true) -> "❄"
+                        detail.contains("cloud", true) -> "☁"
+                        else -> "☀"
+                    }
+                    val weatherArgs = listOf(cityName, temp, detail, icon).joinToString(",") { org.json.JSONObject.quote(it) }
+                    dashboardWeb.evaluateJavascript("window.setWeather && window.setWeather($weatherArgs)", null)
+                    val items = JSONArray()
+                    n.take(4).forEach { story ->
+                        items.put(org.json.JSONObject().put("title", story.title).put("source", story.source).put("image", story.imageUrl))
+                    }
+                    dashboardWeb.evaluateJavascript("window.setStories && window.setStories($items)", null)
+                }
             }
         }
     }
