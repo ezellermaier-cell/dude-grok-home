@@ -226,7 +226,7 @@ class MainActivity : Activity() {
         if (receiverOn) return
         val filter = IntentFilter(WakeWordService.ACTION_WAKE_COMMAND)
         if (Build.VERSION.SDK_INT >= 33) registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED)
-        else @Suppress("DEPRECATION") registerReceiver(receiver, filter)
+        else registerReceiver(receiver, filter)
         receiverOn = true
     }
 
@@ -399,14 +399,16 @@ class MainActivity : Activity() {
             .putString(name + "_cipher", android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)).apply()
     }
 
-    private fun loadSecret(name: String): String = try {
-        val iv = prefs.getString(name + "_iv", null) ?: return ""
-        val encrypted = prefs.getString(name + "_cipher", null) ?: return ""
-        val cipher = javax.crypto.Cipher.getInstance("AES/GCM/NoPadding")
-        cipher.init(javax.crypto.Cipher.DECRYPT_MODE, secretKey(),
-            javax.crypto.spec.GCMParameterSpec(128, android.util.Base64.decode(iv, android.util.Base64.NO_WRAP)))
-        String(cipher.doFinal(android.util.Base64.decode(encrypted, android.util.Base64.NO_WRAP)), Charsets.UTF_8)
-    } catch (_: Exception) { "" }
+    private fun loadSecret(name: String): String {
+        return try {
+            val iv = prefs.getString(name + "_iv", null) ?: return ""
+            val encrypted = prefs.getString(name + "_cipher", null) ?: return ""
+            val cipher = javax.crypto.Cipher.getInstance("AES/GCM/NoPadding")
+            cipher.init(javax.crypto.Cipher.DECRYPT_MODE, secretKey(),
+                javax.crypto.spec.GCMParameterSpec(128, android.util.Base64.decode(iv, android.util.Base64.NO_WRAP)))
+            String(cipher.doFinal(android.util.Base64.decode(encrypted, android.util.Base64.NO_WRAP)), Charsets.UTF_8)
+        } catch (_: Exception) { "" }
+    }
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
